@@ -1,0 +1,28 @@
+{
+  "name": "kolayvilla",
+  "version": "1.0.0",
+  "description": "Real estate listing platform built with Cloudflare Workers, D1, and R2",
+  "main": "backend/worker.js",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "test": "wrangler dev --local"
+  },
+  "keywords": [
+    "cloudflare",
+    "workers",
+    "real-estate",
+    "mvc"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20231218.0",
+    "wrangler": "^3.22.0"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "hono": "^3.11.7",
+    "jose": "^5.1.3"
+  }
+}

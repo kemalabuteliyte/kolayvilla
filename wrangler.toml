@@ -1,0 +1,19 @@
+name = "kolayvilla"
+main = "backend/worker.js"
+compatibility_date = "2024-01-01"
+workers_dev = true
+
+[env.production]
+name = "kolayvilla-production"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "kolayvilla-db"
+database_id = "your-database-id-here"
+
+[[r2_buckets]]
+binding = "IMAGES"
+bucket_name = "kolayvilla-images"
+
+[vars]
+JWT_SECRET = "your-jwt-secret-change-this-in-production"
