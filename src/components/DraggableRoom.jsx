@@ -5,10 +5,13 @@ export function DraggableRoom({
   roomType,
   isSelected,
   hasOverlap = false,
+  isLocked = false,
+  validationWarnings = [],
   onClick,
   onUpdate,
   onDelete,
   onDuplicate,
+  onToggleLock,
   scale = 1
 }) {
   const [isDragging, setIsDragging] = useState(false);
@@ -20,6 +23,7 @@ export function DraggableRoom({
   // Handle room dragging
   const handleMouseDown = (e) => {
     if (e.target.classList.contains('resize-handle')) return;
+    if (isLocked) return; // Prevent dragging if locked
     e.stopPropagation();
     setIsDragging(true);
     setDragStart({
@@ -30,6 +34,7 @@ export function DraggableRoom({
 
   // Handle resize start
   const handleResizeStart = (e, direction) => {
+    if (isLocked) return; // Prevent resizing if locked
     e.stopPropagation();
     setIsResizing(direction);
     setResizeStart({
@@ -113,18 +118,21 @@ export function DraggableRoom({
 
   const area = room.size.width * room.size.height;
 
+  const hasWarnings = validationWarnings.length > 0;
+
   return (
     <div
       ref={roomRef}
-      className={`room-element ${isSelected ? 'selected' : ''} ${isDragging ? 'dragging' : ''} ${isResizing ? 'resizing' : ''} ${hasOverlap ? 'overlap' : ''}`}
+      className={`room-element ${isSelected ? 'selected' : ''} ${isDragging ? 'dragging' : ''} ${isResizing ? 'resizing' : ''} ${hasOverlap ? 'overlap' : ''} ${isLocked ? 'locked' : ''} ${hasWarnings ? 'has-warnings' : ''}`}
       style={{
         left: `${room.position.x * scale}px`,
         top: `${room.position.y * scale}px`,
         width: `${room.size.width * scale}px`,
         height: `${room.size.height * scale}px`,
-        borderColor: hasOverlap ? '#ef4444' : roomType?.color,
-        backgroundColor: hasOverlap ? '#ef444433' : `${roomType?.color}22`,
-        cursor: isDragging ? 'grabbing' : 'grab'
+        borderColor: hasOverlap ? '#ef4444' : (hasWarnings ? '#f59e0b' : roomType?.color),
+        backgroundColor: hasOverlap ? '#ef444433' : (hasWarnings ? '#f59e0b22' : `${roomType?.color}22`),
+        cursor: isLocked ? 'not-allowed' : (isDragging ? 'grabbing' : 'grab'),
+        opacity: isLocked ? 0.7 : 1
       }}
       onMouseDown={handleMouseDown}
       onClick={(e) => {
@@ -140,8 +148,18 @@ export function DraggableRoom({
           {room.size.width}m × {room.size.height}m
         </span>
         <span className="room-element-area">{area}m²</span>
+        {isLocked && (
+          <span style={{ fontSize: 'min(1.2rem, calc(100% / 5))', marginTop: '0.25rem' }} title="Room is locked">
+            🔒
+          </span>
+        )}
         {hasOverlap && (
-          <span style={{ fontSize: 'min(1.5rem, calc(100% / 4))', color: '#ef4444', marginTop: '0.25rem' }}>
+          <span style={{ fontSize: 'min(1.5rem, calc(100% / 4))', color: '#ef4444', marginTop: '0.25rem' }} title="Room overlaps with another">
+            ⚠️
+          </span>
+        )}
+        {hasWarnings && !hasOverlap && (
+          <span style={{ fontSize: 'min(1.5rem, calc(100% / 4))', color: '#f59e0b', marginTop: '0.25rem' }} title={validationWarnings.join(', ')}>
             ⚠️
           </span>
         )}
@@ -171,6 +189,18 @@ export function DraggableRoom({
 
       {/* Controls */}
       <div className="room-controls">
+        {onToggleLock && (
+          <button
+            className={`room-control-btn ${isLocked ? 'active' : ''}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleLock(room.id);
+            }}
+            title={isLocked ? "Unlock Room" : "Lock Room"}
+          >
+            {isLocked ? '🔒' : '🔓'}
+          </button>
+        )}
         <button
           className="room-control-btn"
           onClick={(e) => {
@@ -197,16 +227,19 @@ export function DraggableRoom({
           className="room-control-btn danger"
           onClick={(e) => {
             e.stopPropagation();
-            onDelete(room.id);
+            if (!isLocked) {
+              onDelete(room.id);
+            }
           }}
-          title="Delete"
+          title={isLocked ? "Unlock to delete" : "Delete"}
+          disabled={isLocked}
         >
           🗑️
         </button>
       </div>
 
       {/* Resize Handles */}
-      {isSelected && (
+      {isSelected && !isLocked && (
         <>
           <div
             className="resize-handle resize-n"

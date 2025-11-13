@@ -285,6 +285,32 @@
   }
 }
 
+.room-element.locked {
+  cursor: not-allowed !important;
+}
+
+.room-element.locked::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: repeating-linear-gradient(
+    45deg,
+    transparent,
+    transparent 10px,
+    rgba(0, 0, 0, 0.05) 10px,
+    rgba(0, 0, 0, 0.05) 20px
+  );
+  pointer-events: none;
+  border-radius: 0.5rem;
+}
+
+.room-element.has-warnings {
+  border-style: dashed;
+}
+
 /* Room Content */
 .room-content {
   pointer-events: none;
@@ -389,6 +415,16 @@
 
 .room-control-btn.danger:hover {
   background: var(--danger);
+}
+
+.room-control-btn.active {
+  background: var(--primary);
+  color: white;
+}
+
+.room-control-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 /* Resize Handles */

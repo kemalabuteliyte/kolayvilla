@@ -19,6 +19,13 @@ export default function Builder() {
   const [copiedRoom, setCopiedRoom] = useState(null);
   const [selectedRooms, setSelectedRooms] = useState([]);
   const [gridSize, setGridSize] = useState(2);
+  const [lockedRooms, setLockedRooms] = useState(new Set());
+  const [showValidationWarnings, setShowValidationWarnings] = useState(true);
+  const [autoSaveEnabled, setAutoSaveEnabled] = useState(true);
+  const [lastSaved, setLastSaved] = useState(null);
+  const [measurementMode, setMeasurementMode] = useState(false);
+  const [measurementStart, setMeasurementStart] = useState(null);
+  const [measurementEnd, setMeasurementEnd] = useState(null);
   const canvasRef = useRef(null);
 
   const {
@@ -248,6 +255,144 @@ export default function Builder() {
         y: (canvasHeight - selectedRoom.size.height) / 2
       }
     });
+  };
+
+  // Room locking
+  const toggleRoomLock = (roomId) => {
+    setLockedRooms(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(roomId)) {
+        newSet.delete(roomId);
+      } else {
+        newSet.add(roomId);
+      }
+      return newSet;
+    });
+  };
+
+  const isRoomLocked = (roomId) => {
+    return lockedRooms.has(roomId);
+  };
+
+  // Room validation
+  const validateRoom = (room) => {
+    const warnings = [];
+    const roomType = Object.values(ROOM_TYPES).find(rt => rt.id === room.type);
+
+    if (!roomType) return warnings;
+
+    // Check minimum size
+    if (room.size.width < roomType.minSize.width) {
+      warnings.push(`Width below minimum (${roomType.minSize.width}m)`);
+    }
+    if (room.size.height < roomType.minSize.height) {
+      warnings.push(`Height below minimum (${roomType.minSize.height}m)`);
+    }
+
+    // Check if room is too large (practical limits)
+    if (room.size.width > 50) {
+      warnings.push('Room width exceeds practical limit (50m)');
+    }
+    if (room.size.height > 50) {
+      warnings.push('Room height exceeds practical limit (50m)');
+    }
+
+    // Check area
+    const area = room.size.width * room.size.height;
+    if (area < 5) {
+      warnings.push('Room area is too small (< 5m²)');
+    }
+    if (area > 500) {
+      warnings.push('Room area is unusually large (> 500m²)');
+    }
+
+    // Check overlap
+    const overlaps = getOverlappingRooms(room);
+    if (overlaps.length > 0) {
+      warnings.push(`Overlaps with ${overlaps.length} room(s)`);
+    }
+
+    // Check position
+    if (room.position.x < 0 || room.position.y < 0) {
+      warnings.push('Room position is outside canvas bounds');
+    }
+
+    return warnings;
+  };
+
+  const getAllValidationIssues = () => {
+    const issues = [];
+    Object.entries(rooms).forEach(([floorNum, floorRooms]) => {
+      floorRooms.forEach(room => {
+        const warnings = validateRoom(room);
+        if (warnings.length > 0) {
+          issues.push({
+            floor: parseInt(floorNum),
+            room,
+            warnings
+          });
+        }
+      });
+    });
+    return issues;
+  };
+
+  // Auto-save functionality
+  useEffect(() => {
+    if (!autoSaveEnabled) return;
+
+    const autoSaveInterval = setInterval(() => {
+      const data = exportVilla();
+      localStorage.setItem('kolayvilla_autosave', JSON.stringify(data));
+      setLastSaved(new Date());
+    }, 30000); // Auto-save every 30 seconds
+
+    return () => clearInterval(autoSaveInterval);
+  }, [autoSaveEnabled, rooms, villaName, numberOfFloors]);
+
+  // Load auto-save on mount
+  useEffect(() => {
+    const saved = localStorage.getItem('kolayvilla_autosave');
+    if (saved) {
+      try {
+        const data = JSON.parse(saved);
+        // Could show a prompt to restore
+        console.log('Auto-save found:', data.villaName);
+      } catch (e) {
+        console.error('Failed to load auto-save:', e);
+      }
+    }
+  }, []);
+
+  // Cost estimation
+  const estimateCosts = () => {
+    const totalArea = Object.values(rooms).reduce((acc, floor) =>
+      acc + floor.reduce((sum, room) => sum + (room.size.width * room.size.height), 0), 0
+    );
+
+    // Rough estimates per square meter (in USD)
+    const baseConstruction = totalArea * 1500; // $1500/m²
+    const roomCount = Object.values(rooms).reduce((acc, floor) => acc + floor.length, 0);
+    const roomComplexity = roomCount * 5000; // $5000 per room complexity
+
+    // Count features
+    let featureCount = 0;
+    Object.values(rooms).forEach(floor => {
+      floor.forEach(room => {
+        featureCount += Object.keys(room.features || {}).length;
+      });
+    });
+    const featureCost = featureCount * 500; // $500 per feature
+
+    return {
+      baseConstruction,
+      roomComplexity,
+      featureCost,
+      total: baseConstruction + roomComplexity + featureCost,
+      totalArea,
+      roomCount,
+      featureCount
+    };
   };
 
   // Undo/Redo functionality
@@ -667,6 +812,7 @@ export default function Builder() {
                     const roomType = Object.values(ROOM_TYPES).find(rt => rt.id === room.type);
                     const overlappingRooms = getOverlappingRooms(room);
                     const hasOverlap = overlappingRooms.length > 0;
+                    const warnings = showValidationWarnings ? validateRoom(room) : [];
 
                     return (
                       <DraggableRoom
@@ -675,10 +821,13 @@ export default function Builder() {
                         roomType={roomType}
                         isSelected={selectedRoom?.id === room.id}
                         hasOverlap={hasOverlap}
+                        isLocked={isRoomLocked(room.id)}
+                        validationWarnings={warnings}
                         onClick={handleRoomClick}
                         onUpdate={handleRoomUpdate}
                         onDelete={(id) => deleteRoom(currentFloor, id)}
                         onDuplicate={handleRoomDuplicate}
+                        onToggleLock={toggleRoomLock}
                         scale={canvasScale}
                       />
                     );
@@ -1073,7 +1222,99 @@ export default function Builder() {
                         X: {selectedRoom.position.x}m, Y: {selectedRoom.position.y}m
                       </span>
                     </div>
+                    <div className="stat-item">
+                      <span className="stat-label">Status:</span>
+                      <span className="stat-value">
+                        {isRoomLocked(selectedRoom.id) ? '🔒 Locked' : '🔓 Unlocked'}
+                      </span>
+                    </div>
                   </>
+                )}
+
+                {/* Validation Warnings */}
+                {(() => {
+                  const issues = getAllValidationIssues();
+                  if (issues.length > 0) {
+                    return (
+                      <>
+                        <div style={{ borderTop: '1px solid var(--border)', paddingTop: '0.75rem', marginTop: '0.5rem' }}>
+                          <h4 style={{ marginBottom: '0.5rem', fontSize: '0.9rem', color: '#f59e0b' }}>
+                            ⚠️ Warnings ({issues.length})
+                          </h4>
+                        </div>
+                        {issues.slice(0, 3).map((issue, idx) => (
+                          <div key={idx} style={{
+                            padding: '0.5rem',
+                            background: 'rgba(245, 158, 11, 0.1)',
+                            borderRadius: '0.5rem',
+                            fontSize: '0.75rem',
+                            border: '1px solid rgba(245, 158, 11, 0.3)'
+                          }}>
+                            <div style={{ fontWeight: 600, marginBottom: '0.25rem' }}>
+                              Floor {issue.floor}: {issue.room.customName || issue.room.name}
+                            </div>
+                            <div style={{ color: 'var(--text-secondary)' }}>
+                              {issue.warnings[0]}
+                            </div>
+                          </div>
+                        ))}
+                        {issues.length > 3 && (
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textAlign: 'center' }}>
+                            +{issues.length - 3} more warnings
+                          </div>
+                        )}
+                      </>
+                    );
+                  }
+                  return null;
+                })()}
+
+                {/* Cost Estimation */}
+                {(() => {
+                  const costs = estimateCosts();
+                  return (
+                    <>
+                      <div style={{ borderTop: '1px solid var(--border)', paddingTop: '0.75rem', marginTop: '0.5rem' }}>
+                        <h4 style={{ marginBottom: '0.5rem', fontSize: '0.9rem' }}>💰 Cost Estimate</h4>
+                      </div>
+                      <div className="stat-item">
+                        <span className="stat-label">Base Construction:</span>
+                        <span className="stat-value">${(costs.baseConstruction / 1000).toFixed(0)}k</span>
+                      </div>
+                      <div className="stat-item">
+                        <span className="stat-label">Room Complexity:</span>
+                        <span className="stat-value">${(costs.roomComplexity / 1000).toFixed(0)}k</span>
+                      </div>
+                      <div className="stat-item">
+                        <span className="stat-label">Features:</span>
+                        <span className="stat-value">${(costs.featureCost / 1000).toFixed(0)}k</span>
+                      </div>
+                      <div className="stat-item" style={{ background: 'var(--bg-main)', fontWeight: 700 }}>
+                        <span className="stat-label">Total Estimate:</span>
+                        <span className="stat-value" style={{ fontSize: '1.1rem' }}>
+                          ${(costs.total / 1000).toFixed(0)}k
+                        </span>
+                      </div>
+                      <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '0.25rem', textAlign: 'center' }}>
+                        *Rough estimate only
+                      </div>
+                    </>
+                  );
+                })()}
+
+                {/* Auto-save Status */}
+                {lastSaved && (
+                  <div style={{
+                    marginTop: '0.75rem',
+                    padding: '0.5rem',
+                    background: 'rgba(16, 185, 129, 0.1)',
+                    borderRadius: '0.5rem',
+                    fontSize: '0.75rem',
+                    textAlign: 'center',
+                    color: 'var(--success)'
+                  }}>
+                    ✓ Auto-saved at {lastSaved.toLocaleTimeString()}
+                  </div>
                 )}
               </div>
             </motion.div>
