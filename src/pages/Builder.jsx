@@ -1,12 +1,17 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { useVillaStore } from '../store/villaStore';
 import ROOM_TYPES, { FEATURE_CATEGORIES } from '../data/roomTypes';
-import { Download, Save, Eye } from 'lucide-react';
+import { Download, Save, Grid, ZoomIn, ZoomOut } from 'lucide-react';
+import { DraggableRoom } from '../components/DraggableRoom';
 
 export default function Builder() {
   const [showRoomModal, setShowRoomModal] = useState(false);
   const [selectedRoomForEdit, setSelectedRoomForEdit] = useState(null);
+  const [draggedRoomType, setDraggedRoomType] = useState(null);
+  const [canvasScale, setCanvasScale] = useState(4);
+  const [showGrid, setShowGrid] = useState(true);
+  const canvasRef = useRef(null);
 
   const {
     villaName,
@@ -27,11 +32,47 @@ export default function Builder() {
     exportVilla
   } = useVillaStore();
 
-  const handleAddRoom = (roomTypeId) => {
+  // Handle drag from palette
+  const handleDragStart = (e, roomTypeId) => {
     const roomType = Object.values(ROOM_TYPES).find(rt => rt.id === roomTypeId);
-    if (roomType) {
-      addRoom(currentFloor, roomType);
+    setDraggedRoomType(roomType);
+    e.dataTransfer.effectAllowed = 'copy';
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    if (!draggedRoomType || !canvasRef.current) return;
+
+    const rect = canvasRef.current.getBoundingClientRect();
+    const x = Math.max(0, (e.clientX - rect.left) / canvasScale);
+    const y = Math.max(0, (e.clientY - rect.top) / canvasScale);
+
+    // Snap to grid
+    const snappedX = Math.round(x / 2) * 2;
+    const snappedY = Math.round(y / 2) * 2;
+
+    const roomId = addRoom(currentFloor, draggedRoomType);
+
+    // Update position immediately
+    if (roomId) {
+      const newRoom = rooms[currentFloor].find(r => r.id === roomId);
+      if (newRoom) {
+        updateRoom(currentFloor, roomId, {
+          position: { x: snappedX, y: snappedY }
+        });
+      }
     }
+
+    setDraggedRoomType(null);
+  };
+
+  const handleRoomUpdate = (updatedRoom) => {
+    updateRoom(currentFloor, updatedRoom.id, updatedRoom);
   };
 
   const handleRoomClick = (room) => {
@@ -40,10 +81,17 @@ export default function Builder() {
     setShowRoomModal(true);
   };
 
+  const handleCanvasClick = (e) => {
+    if (e.target === canvasRef.current) {
+      setSelectedRoom(null);
+    }
+  };
+
   const handleSaveFeatures = (features) => {
     if (selectedRoomForEdit) {
       updateRoomFeatures(currentFloor, selectedRoomForEdit.id, features);
       setShowRoomModal(false);
+      setSelectedRoom(null);
     }
   };
 
@@ -60,6 +108,9 @@ export default function Builder() {
     URL.revokeObjectURL(url);
   };
 
+  const zoomIn = () => setCanvasScale(Math.min(6, canvasScale + 0.5));
+  const zoomOut = () => setCanvasScale(Math.max(2, canvasScale - 0.5));
+
   return (
     <div className="page">
       <div className="container">
@@ -71,8 +122,7 @@ export default function Builder() {
               type="text"
               value={villaName}
               onChange={(e) => setVillaName(e.target.value)}
-              className="input-text"
-              style={{ maxWidth: '400px' }}
+              style={{ maxWidth: '400px', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--border)', background: 'var(--bg-tertiary)', color: 'var(--text-primary)' }}
               placeholder="Villa Name"
             />
           </div>
@@ -144,7 +194,7 @@ export default function Builder() {
                 style={{ marginTop: '2rem' }}
                 onClick={() => setCurrentStep('builder')}
               >
-                Next: Build Floor Plan
+                Next: Build Floor Plan →
               </button>
             </div>
           </motion.div>
@@ -162,79 +212,130 @@ export default function Builder() {
                 <button
                   key={floor}
                   className={`floor-btn ${currentFloor === floor ? 'active' : ''}`}
-                  onClick={() => setCurrentFloor(floor)}
+                  onClick={() => {
+                    setCurrentFloor(floor);
+                    setSelectedRoom(null);
+                  }}
                 >
-                  Floor {floor}
+                  Floor {floor} ({rooms[floor]?.length || 0} rooms)
                 </button>
               ))}
             </div>
 
-            {/* Room Palette */}
-            <div className="room-palette">
-              <h3 style={{ marginBottom: '1rem' }}>Room Types</h3>
-              <div className="room-categories">
-                {Object.values(ROOM_TYPES).map(roomType => (
-                  <div
-                    key={roomType.id}
-                    className="room-item"
-                    onClick={() => handleAddRoom(roomType.id)}
-                  >
-                    <span className="room-icon">{roomType.icon}</span>
-                    <span className="room-name">{roomType.name}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Canvas */}
-            <div className="canvas-container">
-              <div className="canvas">
-                {rooms[currentFloor]?.map(room => {
-                  const roomType = Object.values(ROOM_TYPES).find(rt => rt.id === room.type);
-                  return (
+            <div className="builder-layout">
+              {/* Room Palette */}
+              <div className="room-palette">
+                <h3 style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <span>Room Types</span>
+                  <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', fontWeight: 'normal' }}>
+                    (Drag to canvas)
+                  </span>
+                </h3>
+                <div className="room-categories">
+                  {Object.values(ROOM_TYPES).map(roomType => (
                     <div
-                      key={room.id}
-                      className={`room-element ${selectedRoom?.id === room.id ? 'selected' : ''}`}
-                      style={{
-                        left: `${room.position.x * 4}px`,
-                        top: `${room.position.y * 4}px`,
-                        width: `${room.size.width * 4}px`,
-                        height: `${room.size.height * 4}px`,
-                        borderColor: roomType?.color,
-                        backgroundColor: `${roomType?.color}33`
-                      }}
-                      onClick={() => handleRoomClick(room)}
+                      key={roomType.id}
+                      className="room-item"
+                      draggable
+                      onDragStart={(e) => handleDragStart(e, roomType.id)}
+                      style={{ borderColor: roomType.color }}
                     >
-                      <span className="room-element-icon">{roomType?.icon}</span>
-                      <span className="room-element-name">{room.customName || room.name}</span>
-                      <div className="room-controls">
-                        <button
-                          className="room-control-btn danger"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            deleteRoom(currentFloor, room.id);
-                          }}
-                        >
-                          ×
-                        </button>
-                      </div>
+                      <span className="room-icon">{roomType.icon}</span>
+                      <span className="room-name">{roomType.name}</span>
+                      <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)' }}>
+                        {roomType.defaultSize.width}×{roomType.defaultSize.height}m
+                      </span>
                     </div>
-                  );
-                })}
-              </div>
-              {rooms[currentFloor]?.length === 0 && (
-                <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>
-                  Click on room types above to add them to this floor
+                  ))}
                 </div>
-              )}
+              </div>
+
+              {/* Canvas Controls */}
+              <div className="canvas-controls">
+                <button
+                  className={`btn btn-sm ${showGrid ? 'btn-primary' : 'btn-secondary'}`}
+                  onClick={() => setShowGrid(!showGrid)}
+                >
+                  <Grid size={16} />
+                  Grid
+                </button>
+                <button className="btn btn-secondary btn-sm" onClick={zoomOut}>
+                  <ZoomOut size={16} />
+                </button>
+                <span style={{ padding: '0 0.5rem', color: 'var(--text-secondary)' }}>
+                  {Math.round((canvasScale / 4) * 100)}%
+                </span>
+                <button className="btn btn-secondary btn-sm" onClick={zoomIn}>
+                  <ZoomIn size={16} />
+                </button>
+              </div>
+
+              {/* Canvas */}
+              <div className="canvas-container">
+                <div
+                  ref={canvasRef}
+                  className={`canvas ${showGrid ? 'show-grid' : ''}`}
+                  onDragOver={handleDragOver}
+                  onDrop={handleDrop}
+                  onClick={handleCanvasClick}
+                  style={{
+                    backgroundSize: showGrid ? `${canvasScale * 2}px ${canvasScale * 2}px` : 'auto'
+                  }}
+                >
+                  {rooms[currentFloor]?.map(room => {
+                    const roomType = Object.values(ROOM_TYPES).find(rt => rt.id === room.type);
+                    return (
+                      <DraggableRoom
+                        key={room.id}
+                        room={room}
+                        roomType={roomType}
+                        isSelected={selectedRoom?.id === room.id}
+                        onClick={handleRoomClick}
+                        onUpdate={handleRoomUpdate}
+                        onDelete={(id) => deleteRoom(currentFloor, id)}
+                        scale={canvasScale}
+                      />
+                    );
+                  })}
+
+                  {draggedRoomType && (
+                    <div className="canvas-hint">
+                      Drop here to add {draggedRoomType.name}
+                    </div>
+                  )}
+
+                  {rooms[currentFloor]?.length === 0 && !draggedRoomType && (
+                    <div className="canvas-empty">
+                      <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🏗️</div>
+                      <h3>Drag rooms from the palette to start building</h3>
+                      <p style={{ color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
+                        Click and drag to reposition • Drag corners to resize
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Legend */}
+                <div className="canvas-legend">
+                  <div className="legend-item">
+                    <span>🖱️ Drag to move</span>
+                  </div>
+                  <div className="legend-item">
+                    <span>📏 Drag corners to resize</span>
+                  </div>
+                  <div className="legend-item">
+                    <span>⚙️ Click room for details</span>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <div className="flex gap-2" style={{ marginTop: '2rem' }}>
               <button className="btn btn-secondary" onClick={() => setCurrentStep('config')}>
-                Back
+                ← Back
               </button>
               <button className="btn btn-primary" onClick={() => setCurrentStep('details')}>
-                Next: Add Details
+                Next: Add Details →
               </button>
             </div>
           </motion.div>
@@ -249,7 +350,7 @@ export default function Builder() {
             <div className="card">
               <h2 style={{ fontSize: '1.5rem', marginBottom: '1rem' }}>Room Details</h2>
               <p style={{ color: 'var(--text-secondary)', marginBottom: '2rem' }}>
-                Click on any room in the floor plan to customize its features
+                Click on any room to customize its features, outlets, fixtures, and more
               </p>
               <div className="floor-selector">
                 {Array.from({ length: numberOfFloors }, (_, i) => i + 1).map(floor => (
@@ -263,40 +364,54 @@ export default function Builder() {
                 ))}
               </div>
               <div style={{ marginTop: '2rem' }}>
-                {rooms[currentFloor]?.map(room => {
-                  const roomType = Object.values(ROOM_TYPES).find(rt => rt.id === room.type);
-                  return (
-                    <div
-                      key={room.id}
-                      className="card card-hover"
-                      style={{ marginBottom: '1rem', borderColor: roomType?.color }}
-                      onClick={() => handleRoomClick(room)}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <span style={{ fontSize: '2rem' }}>{roomType?.icon}</span>
-                          <div>
-                            <h3>{room.customName || room.name}</h3>
-                            <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
-                              {room.size.width}m × {room.size.height}m
-                            </p>
+                {rooms[currentFloor]?.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>
+                    <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📭</div>
+                    <p>No rooms on this floor. Go back to add rooms.</p>
+                  </div>
+                ) : (
+                  rooms[currentFloor]?.map(room => {
+                    const roomType = Object.values(ROOM_TYPES).find(rt => rt.id === room.type);
+                    const featureCount = Object.keys(room.features || {}).length;
+
+                    return (
+                      <div
+                        key={room.id}
+                        className="card card-hover"
+                        style={{ marginBottom: '1rem', borderColor: roomType?.color }}
+                        onClick={() => handleRoomClick(room)}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span style={{ fontSize: '2rem' }}>{roomType?.icon}</span>
+                            <div>
+                              <h3>{room.customName || room.name}</h3>
+                              <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
+                                {room.size.width}m × {room.size.height}m ({room.size.width * room.size.height}m²)
+                              </p>
+                              {featureCount > 0 && (
+                                <p style={{ color: 'var(--success)', fontSize: '0.875rem', marginTop: '0.25rem' }}>
+                                  ✓ {featureCount} feature{featureCount !== 1 ? 's' : ''} configured
+                                </p>
+                              )}
+                            </div>
                           </div>
+                          <button className="btn btn-primary btn-sm">
+                            {featureCount > 0 ? 'Edit' : 'Customize'} →
+                          </button>
                         </div>
-                        <button className="btn btn-secondary btn-sm">
-                          Customize →
-                        </button>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })
+                )}
               </div>
             </div>
             <div className="flex gap-2" style={{ marginTop: '2rem' }}>
               <button className="btn btn-secondary" onClick={() => setCurrentStep('builder')}>
-                Back
+                ← Back
               </button>
               <button className="btn btn-primary" onClick={() => setCurrentStep('preview')}>
-                Next: Preview
+                Next: Preview →
               </button>
             </div>
           </motion.div>
@@ -321,6 +436,14 @@ export default function Builder() {
                   </div>
                   <div className="preview-stat-label">Total Rooms</div>
                 </div>
+                <div className="preview-stat">
+                  <div className="preview-stat-value">
+                    {Object.values(rooms).reduce((acc, floor) =>
+                      acc + floor.reduce((sum, room) => sum + (room.size.width * room.size.height), 0), 0
+                    )}m²
+                  </div>
+                  <div className="preview-stat-label">Total Area</div>
+                </div>
                 {Array.from({ length: numberOfFloors }, (_, i) => i + 1).map(floor => (
                   <div key={floor} className="preview-stat">
                     <div className="preview-stat-value">{rooms[floor]?.length || 0}</div>
@@ -330,33 +453,45 @@ export default function Builder() {
               </div>
 
               <div className="preview-section" style={{ marginTop: '2rem' }}>
-                <h3 className="preview-section-title">All Rooms</h3>
+                <h3 className="preview-section-title">Floor Plans</h3>
                 {Array.from({ length: numberOfFloors }, (_, i) => i + 1).map(floor => (
-                  <div key={floor} style={{ marginBottom: '1.5rem' }}>
-                    <h4 style={{ marginBottom: '1rem' }}>Floor {floor}</h4>
-                    <div className="grid grid-3">
-                      {rooms[floor]?.map(room => {
-                        const roomType = Object.values(ROOM_TYPES).find(rt => rt.id === room.type);
-                        return (
-                          <div key={room.id} className="card">
-                            <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>
-                              {roomType?.icon}
+                  <div key={floor} style={{ marginBottom: '2rem' }}>
+                    <h4 style={{ marginBottom: '1rem', fontSize: '1.25rem' }}>
+                      Floor {floor} ({rooms[floor]?.length || 0} rooms, {rooms[floor]?.reduce((sum, room) => sum + (room.size.width * room.size.height), 0) || 0}m²)
+                    </h4>
+                    {rooms[floor]?.length === 0 ? (
+                      <p style={{ color: 'var(--text-secondary)' }}>No rooms on this floor</p>
+                    ) : (
+                      <div className="grid grid-3">
+                        {rooms[floor]?.map(room => {
+                          const roomType = Object.values(ROOM_TYPES).find(rt => rt.id === room.type);
+                          const area = room.size.width * room.size.height;
+                          return (
+                            <div key={room.id} className="card">
+                              <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>
+                                {roomType?.icon}
+                              </div>
+                              <h4>{room.customName || room.name}</h4>
+                              <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
+                                {room.size.width}m × {room.size.height}m ({area}m²)
+                              </p>
+                              {Object.keys(room.features || {}).length > 0 && (
+                                <p style={{ color: 'var(--success)', fontSize: '0.75rem', marginTop: '0.5rem' }}>
+                                  ✓ Features configured
+                                </p>
+                              )}
                             </div>
-                            <h4>{room.customName || room.name}</h4>
-                            <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
-                              {room.size.width}m × {room.size.height}m ({room.size.width * room.size.height}m²)
-                            </p>
-                          </div>
-                        );
-                      })}
-                    </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
             </div>
             <div className="flex gap-2" style={{ marginTop: '2rem' }}>
               <button className="btn btn-secondary" onClick={() => setCurrentStep('details')}>
-                Back
+                ← Back
               </button>
               <button className="btn btn-success" onClick={handleExport}>
                 <Download size={20} />
@@ -370,7 +505,10 @@ export default function Builder() {
         {showRoomModal && selectedRoomForEdit && (
           <RoomFeatureModal
             room={selectedRoomForEdit}
-            onClose={() => setShowRoomModal(false)}
+            onClose={() => {
+              setShowRoomModal(false);
+              setSelectedRoom(null);
+            }}
             onSave={handleSaveFeatures}
           />
         )}
