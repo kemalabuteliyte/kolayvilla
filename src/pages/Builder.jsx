@@ -1,8 +1,8 @@
-import { useState, useRef } from 'react';
-import { motion } from 'framer-motion';
+import { useState, useRef, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useVillaStore } from '../store/villaStore';
 import ROOM_TYPES, { FEATURE_CATEGORIES } from '../data/roomTypes';
-import { Download, Save, Grid, ZoomIn, ZoomOut, Upload } from 'lucide-react';
+import { Download, Save, Grid, ZoomIn, ZoomOut, Upload, Keyboard, Undo2, Redo2 } from 'lucide-react';
 import { DraggableRoom } from '../components/DraggableRoom';
 
 export default function Builder() {
@@ -12,6 +12,10 @@ export default function Builder() {
   const [canvasScale, setCanvasScale] = useState(4);
   const [showGrid, setShowGrid] = useState(true);
   const [roomSearch, setRoomSearch] = useState('');
+  const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false);
+  const [history, setHistory] = useState([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
+  const [showStats, setShowStats] = useState(false);
   const canvasRef = useRef(null);
 
   const {
@@ -173,6 +177,124 @@ export default function Builder() {
 
   const zoomIn = () => setCanvasScale(Math.min(6, canvasScale + 0.5));
   const zoomOut = () => setCanvasScale(Math.max(2, canvasScale - 0.5));
+
+  // Undo/Redo functionality
+  const saveToHistory = () => {
+    const newHistory = history.slice(0, historyIndex + 1);
+    newHistory.push(JSON.stringify({ rooms, currentFloor }));
+    setHistory(newHistory);
+    setHistoryIndex(newHistory.length - 1);
+  };
+
+  const undo = () => {
+    if (historyIndex > 0) {
+      const prevState = JSON.parse(history[historyIndex - 1]);
+      // Restore state logic would go here
+      setHistoryIndex(historyIndex - 1);
+    }
+  };
+
+  const redo = () => {
+    if (historyIndex < history.length - 1) {
+      const nextState = JSON.parse(history[historyIndex + 1]);
+      // Restore state logic would go here
+      setHistoryIndex(historyIndex + 1);
+    }
+  };
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyPress = (e) => {
+      // Ignore if typing in input
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') {
+        return;
+      }
+
+      // Ctrl/Cmd + Z = Undo
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        undo();
+      }
+
+      // Ctrl/Cmd + Shift + Z = Redo (or Ctrl/Cmd + Y)
+      if (((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'z') || ((e.ctrlKey || e.metaKey) && e.key === 'y')) {
+        e.preventDefault();
+        redo();
+      }
+
+      // G = Toggle Grid
+      if (e.key === 'g' || e.key === 'G') {
+        e.preventDefault();
+        setShowGrid(!showGrid);
+      }
+
+      // + or = = Zoom In
+      if (e.key === '+' || e.key === '=') {
+        e.preventDefault();
+        zoomIn();
+      }
+
+      // - = Zoom Out
+      if (e.key === '-') {
+        e.preventDefault();
+        zoomOut();
+      }
+
+      // Delete or Backspace = Delete selected room
+      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedRoom) {
+        e.preventDefault();
+        deleteRoom(currentFloor, selectedRoom.id);
+        setSelectedRoom(null);
+      }
+
+      // D = Duplicate selected room
+      if ((e.key === 'd' || e.key === 'D') && selectedRoom) {
+        e.preventDefault();
+        handleRoomDuplicate(selectedRoom);
+      }
+
+      // E = Edit selected room
+      if ((e.key === 'e' || e.key === 'E') && selectedRoom) {
+        e.preventDefault();
+        handleRoomClick(selectedRoom);
+      }
+
+      // Escape = Close modal or deselect
+      if (e.key === 'Escape') {
+        if (showRoomModal) {
+          setShowRoomModal(false);
+          setSelectedRoom(null);
+        } else if (selectedRoom) {
+          setSelectedRoom(null);
+        }
+      }
+
+      // ? = Show keyboard shortcuts
+      if (e.key === '?') {
+        e.preventDefault();
+        setShowKeyboardShortcuts(!showKeyboardShortcuts);
+      }
+
+      // S = Show stats
+      if (e.key === 's' || e.key === 'S') {
+        e.preventDefault();
+        setShowStats(!showStats);
+      }
+
+      // Arrow keys = Navigate floors
+      if (e.key === 'ArrowUp' && currentFloor < numberOfFloors) {
+        e.preventDefault();
+        setCurrentFloor(currentFloor + 1);
+      }
+      if (e.key === 'ArrowDown' && currentFloor > 1) {
+        e.preventDefault();
+        setCurrentFloor(currentFloor - 1);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }, [showGrid, selectedRoom, showRoomModal, currentFloor, numberOfFloors, showKeyboardShortcuts, showStats, historyIndex, history]);
 
   return (
     <div className="page">
@@ -609,6 +731,182 @@ export default function Builder() {
             }}
             onSave={handleSaveFeatures}
           />
+        )}
+
+        {/* Keyboard Shortcuts Modal */}
+        <AnimatePresence>
+          {showKeyboardShortcuts && (
+            <div className="modal-overlay" onClick={() => setShowKeyboardShortcuts(false)}>
+              <motion.div
+                className="modal"
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                onClick={(e) => e.stopPropagation()}
+                style={{ maxWidth: '600px' }}
+              >
+                <div className="modal-header">
+                  <h2 className="modal-title">
+                    <Keyboard size={24} style={{ display: 'inline', marginRight: '0.5rem' }} />
+                    Keyboard Shortcuts
+                  </h2>
+                  <button className="close-btn" onClick={() => setShowKeyboardShortcuts(false)}>×</button>
+                </div>
+                <div className="modal-body">
+                  <div style={{ display: 'grid', gap: '1rem' }}>
+                    <div className="shortcut-group">
+                      <h3 style={{ marginBottom: '0.5rem', fontSize: '1.1rem' }}>Navigation</h3>
+                      <div className="shortcut-item">
+                        <kbd>↑</kbd> / <kbd>↓</kbd>
+                        <span>Navigate between floors</span>
+                      </div>
+                      <div className="shortcut-item">
+                        <kbd>Esc</kbd>
+                        <span>Close modal / Deselect room</span>
+                      </div>
+                    </div>
+                    <div className="shortcut-group">
+                      <h3 style={{ marginBottom: '0.5rem', fontSize: '1.1rem' }}>Editing</h3>
+                      <div className="shortcut-item">
+                        <kbd>E</kbd>
+                        <span>Edit selected room</span>
+                      </div>
+                      <div className="shortcut-item">
+                        <kbd>D</kbd>
+                        <span>Duplicate selected room</span>
+                      </div>
+                      <div className="shortcut-item">
+                        <kbd>Delete</kbd> / <kbd>Backspace</kbd>
+                        <span>Delete selected room</span>
+                      </div>
+                    </div>
+                    <div className="shortcut-group">
+                      <h3 style={{ marginBottom: '0.5rem', fontSize: '1.1rem' }}>View</h3>
+                      <div className="shortcut-item">
+                        <kbd>G</kbd>
+                        <span>Toggle grid</span>
+                      </div>
+                      <div className="shortcut-item">
+                        <kbd>+</kbd> / <kbd>=</kbd>
+                        <span>Zoom in</span>
+                      </div>
+                      <div className="shortcut-item">
+                        <kbd>-</kbd>
+                        <span>Zoom out</span>
+                      </div>
+                      <div className="shortcut-item">
+                        <kbd>S</kbd>
+                        <span>Toggle statistics panel</span>
+                      </div>
+                    </div>
+                    <div className="shortcut-group">
+                      <h3 style={{ marginBottom: '0.5rem', fontSize: '1.1rem' }}>Other</h3>
+                      <div className="shortcut-item">
+                        <kbd>?</kbd>
+                        <span>Show this help</span>
+                      </div>
+                      <div className="shortcut-item">
+                        <kbd>Ctrl/Cmd</kbd> + <kbd>Z</kbd>
+                        <span>Undo (coming soon)</span>
+                      </div>
+                      <div className="shortcut-item">
+                        <kbd>Ctrl/Cmd</kbd> + <kbd>Shift</kbd> + <kbd>Z</kbd>
+                        <span>Redo (coming soon)</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div className="modal-footer">
+                  <button className="btn btn-primary" onClick={() => setShowKeyboardShortcuts(false)}>Got it!</button>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
+        {/* Statistics Panel */}
+        <AnimatePresence>
+          {showStats && currentStep === 'builder' && (
+            <motion.div
+              className="stats-panel"
+              initial={{ x: 300, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: 300, opacity: 0 }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                <h3 style={{ margin: 0 }}>📊 Statistics</h3>
+                <button className="close-btn" onClick={() => setShowStats(false)}>×</button>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                <div className="stat-item">
+                  <span className="stat-label">Current Floor:</span>
+                  <span className="stat-value">{currentFloor}</span>
+                </div>
+                <div className="stat-item">
+                  <span className="stat-label">Rooms on Floor:</span>
+                  <span className="stat-value">{rooms[currentFloor]?.length || 0}</span>
+                </div>
+                <div className="stat-item">
+                  <span className="stat-label">Floor Area:</span>
+                  <span className="stat-value">
+                    {rooms[currentFloor]?.reduce((sum, room) => sum + (room.size.width * room.size.height), 0) || 0}m²
+                  </span>
+                </div>
+                <div className="stat-item">
+                  <span className="stat-label">Total Rooms:</span>
+                  <span className="stat-value">
+                    {Object.values(rooms).reduce((acc, floor) => acc + floor.length, 0)}
+                  </span>
+                </div>
+                <div className="stat-item">
+                  <span className="stat-label">Total Area:</span>
+                  <span className="stat-value">
+                    {Object.values(rooms).reduce((acc, floor) =>
+                      acc + floor.reduce((sum, room) => sum + (room.size.width * room.size.height), 0), 0
+                    )}m²
+                  </span>
+                </div>
+                {selectedRoom && (
+                  <>
+                    <div style={{ borderTop: '1px solid var(--border)', paddingTop: '0.75rem', marginTop: '0.5rem' }}>
+                      <h4 style={{ marginBottom: '0.5rem', fontSize: '0.9rem' }}>Selected Room</h4>
+                    </div>
+                    <div className="stat-item">
+                      <span className="stat-label">Type:</span>
+                      <span className="stat-value">{selectedRoom.customName || selectedRoom.name}</span>
+                    </div>
+                    <div className="stat-item">
+                      <span className="stat-label">Dimensions:</span>
+                      <span className="stat-value">{selectedRoom.size.width}m × {selectedRoom.size.height}m</span>
+                    </div>
+                    <div className="stat-item">
+                      <span className="stat-label">Area:</span>
+                      <span className="stat-value">
+                        {selectedRoom.size.width * selectedRoom.size.height}m²
+                      </span>
+                    </div>
+                    <div className="stat-item">
+                      <span className="stat-label">Position:</span>
+                      <span className="stat-value">
+                        X: {selectedRoom.position.x}m, Y: {selectedRoom.position.y}m
+                      </span>
+                    </div>
+                  </>
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Floating Help Button */}
+        {currentStep === 'builder' && (
+          <button
+            className="floating-help-btn"
+            onClick={() => setShowKeyboardShortcuts(true)}
+            title="Keyboard Shortcuts (?)"
+          >
+            <Keyboard size={20} />
+          </button>
         )}
       </div>
     </div>

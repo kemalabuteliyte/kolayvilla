@@ -298,6 +298,31 @@
   line-height: 1;
 }
 
+/* Dimension Labels */
+.dimension-label {
+  position: absolute;
+  background: var(--primary);
+  color: white;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: 0 2px 4px var(--shadow);
+  z-index: 25;
+}
+
+.dimension-horizontal::before {
+  content: '↔';
+  margin-right: 0.25rem;
+}
+
+.dimension-vertical::before {
+  content: '↕';
+  margin-right: 0.25rem;
+}
+
 /* Room Controls */
 .room-controls {
   position: absolute;
@@ -667,6 +692,108 @@
   font-weight: 600;
 }
 
+/* Keyboard Shortcuts */
+.shortcut-group {
+  background: var(--bg-tertiary);
+  padding: 1rem;
+  border-radius: 0.5rem;
+}
+
+.shortcut-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.5rem;
+  margin: 0.25rem 0;
+}
+
+.shortcut-item kbd {
+  background: var(--bg-main);
+  border: 1px solid var(--border);
+  border-radius: 0.25rem;
+  padding: 0.25rem 0.5rem;
+  font-family: monospace;
+  font-size: 0.875rem;
+  min-width: 30px;
+  text-align: center;
+  box-shadow: 0 2px 0 var(--border);
+}
+
+.shortcut-item span {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+/* Statistics Panel */
+.stats-panel {
+  position: fixed;
+  top: 120px;
+  right: 1rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  padding: 1.5rem;
+  width: 280px;
+  box-shadow: 0 10px 40px var(--shadow);
+  z-index: 100;
+  max-height: calc(100vh - 140px);
+  overflow-y: auto;
+}
+
+.stat-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem;
+  background: var(--bg-tertiary);
+  border-radius: 0.5rem;
+}
+
+.stat-label {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+.stat-value {
+  font-weight: 700;
+  color: var(--primary);
+  font-size: 0.875rem;
+}
+
+/* Floating Help Button */
+.floating-help-btn {
+  position: fixed;
+  bottom: 2rem;
+  right: 2rem;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--primary), var(--secondary));
+  border: none;
+  color: white;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+}
+
+.floating-help-btn:hover {
+  transform: scale(1.1);
+  box-shadow: 0 8px 24px rgba(59, 130, 246, 0.6);
+}
+
+.floating-help-btn:active {
+  transform: scale(0.95);
+}
+
+/* Tooltips */
+[title] {
+  position: relative;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .hero-title {
@@ -704,5 +831,16 @@
   .canvas-legend {
     flex-direction: column;
     gap: 0.5rem;
+  }
+
+  .stats-panel {
+    width: calc(100vw - 2rem);
+    right: 1rem;
+    left: 1rem;
+  }
+
+  .floating-help-btn {
+    bottom: 1rem;
+    right: 1rem;
   }
 }

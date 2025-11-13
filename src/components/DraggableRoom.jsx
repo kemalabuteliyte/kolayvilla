@@ -147,6 +147,28 @@ export function DraggableRoom({
         )}
       </div>
 
+      {/* Dimension Labels */}
+      {isSelected && (
+        <>
+          {/* Width label (top) */}
+          <div className="dimension-label dimension-horizontal" style={{
+            top: '-24px',
+            left: '50%',
+            transform: 'translateX(-50%)'
+          }}>
+            {room.size.width}m
+          </div>
+          {/* Height label (left) */}
+          <div className="dimension-label dimension-vertical" style={{
+            left: '-40px',
+            top: '50%',
+            transform: 'translateY(-50%)'
+          }}>
+            {room.size.height}m
+          </div>
+        </>
+      )}
+
       {/* Controls */}
       <div className="room-controls">
         <button
