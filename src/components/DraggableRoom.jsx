@@ -4,9 +4,11 @@ export function DraggableRoom({
   room,
   roomType,
   isSelected,
+  hasOverlap = false,
   onClick,
   onUpdate,
   onDelete,
+  onDuplicate,
   scale = 1
 }) {
   const [isDragging, setIsDragging] = useState(false);
@@ -114,14 +116,14 @@ export function DraggableRoom({
   return (
     <div
       ref={roomRef}
-      className={`room-element ${isSelected ? 'selected' : ''} ${isDragging ? 'dragging' : ''} ${isResizing ? 'resizing' : ''}`}
+      className={`room-element ${isSelected ? 'selected' : ''} ${isDragging ? 'dragging' : ''} ${isResizing ? 'resizing' : ''} ${hasOverlap ? 'overlap' : ''}`}
       style={{
         left: `${room.position.x * scale}px`,
         top: `${room.position.y * scale}px`,
         width: `${room.size.width * scale}px`,
         height: `${room.size.height * scale}px`,
-        borderColor: roomType?.color,
-        backgroundColor: `${roomType?.color}22`,
+        borderColor: hasOverlap ? '#ef4444' : roomType?.color,
+        backgroundColor: hasOverlap ? '#ef444433' : `${roomType?.color}22`,
         cursor: isDragging ? 'grabbing' : 'grab'
       }}
       onMouseDown={handleMouseDown}
@@ -138,6 +140,11 @@ export function DraggableRoom({
           {room.size.width}m × {room.size.height}m
         </span>
         <span className="room-element-area">{area}m²</span>
+        {hasOverlap && (
+          <span style={{ fontSize: 'min(1.5rem, calc(100% / 4))', color: '#ef4444', marginTop: '0.25rem' }}>
+            ⚠️
+          </span>
+        )}
       </div>
 
       {/* Controls */}
@@ -152,6 +159,18 @@ export function DraggableRoom({
         >
           ⚙️
         </button>
+        {onDuplicate && (
+          <button
+            className="room-control-btn"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDuplicate(room);
+            }}
+            title="Duplicate Room"
+          >
+            📋
+          </button>
+        )}
         <button
           className="room-control-btn danger"
           onClick={(e) => {

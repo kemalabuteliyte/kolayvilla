@@ -2,7 +2,7 @@ import { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { useVillaStore } from '../store/villaStore';
 import ROOM_TYPES, { FEATURE_CATEGORIES } from '../data/roomTypes';
-import { Download, Save, Grid, ZoomIn, ZoomOut } from 'lucide-react';
+import { Download, Save, Grid, ZoomIn, ZoomOut, Upload } from 'lucide-react';
 import { DraggableRoom } from '../components/DraggableRoom';
 
 export default function Builder() {
@@ -11,6 +11,7 @@ export default function Builder() {
   const [draggedRoomType, setDraggedRoomType] = useState(null);
   const [canvasScale, setCanvasScale] = useState(4);
   const [showGrid, setShowGrid] = useState(true);
+  const [roomSearch, setRoomSearch] = useState('');
   const canvasRef = useRef(null);
 
   const {
@@ -29,7 +30,8 @@ export default function Builder() {
     deleteRoom,
     setSelectedRoom,
     updateRoomFeatures,
-    exportVilla
+    exportVilla,
+    importVilla
   } = useVillaStore();
 
   // Handle drag from palette
@@ -75,6 +77,30 @@ export default function Builder() {
     updateRoom(currentFloor, updatedRoom.id, updatedRoom);
   };
 
+  // Check if two rooms overlap
+  const checkOverlap = (room1, room2) => {
+    const r1 = {
+      left: room1.position.x,
+      right: room1.position.x + room1.size.width,
+      top: room1.position.y,
+      bottom: room1.position.y + room1.size.height
+    };
+    const r2 = {
+      left: room2.position.x,
+      right: room2.position.x + room2.size.width,
+      top: room2.position.y,
+      bottom: room2.position.y + room2.size.height
+    };
+
+    return !(r1.right <= r2.left || r1.left >= r2.right || r1.bottom <= r2.top || r1.top >= r2.bottom);
+  };
+
+  // Get overlapping rooms for a specific room
+  const getOverlappingRooms = (room) => {
+    if (!room) return [];
+    return rooms[currentFloor]?.filter(r => r.id !== room.id && checkOverlap(room, r)) || [];
+  };
+
   const handleRoomClick = (room) => {
     setSelectedRoom(room);
     setSelectedRoomForEdit(room);
@@ -87,9 +113,28 @@ export default function Builder() {
     }
   };
 
-  const handleSaveFeatures = (features) => {
+  const handleRoomDuplicate = (room) => {
+    const roomType = Object.values(ROOM_TYPES).find(rt => rt.id === room.type);
+    if (!roomType) return;
+
+    const newRoomId = addRoom(currentFloor, roomType);
+    if (newRoomId) {
+      // Position the duplicate offset from the original
+      updateRoom(currentFloor, newRoomId, {
+        position: { x: room.position.x + 4, y: room.position.y + 4 },
+        size: room.size,
+        features: { ...room.features },
+        customName: room.customName ? `${room.customName} (Copy)` : ''
+      });
+    }
+  };
+
+  const handleSaveFeatures = (features, customName) => {
     if (selectedRoomForEdit) {
       updateRoomFeatures(currentFloor, selectedRoomForEdit.id, features);
+      if (customName !== selectedRoomForEdit.customName) {
+        updateRoom(currentFloor, selectedRoomForEdit.id, { customName });
+      }
       setShowRoomModal(false);
       setSelectedRoom(null);
     }
@@ -106,6 +151,24 @@ export default function Builder() {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+  };
+
+  const handleImport = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const data = JSON.parse(event.target?.result);
+        importVilla(data);
+        alert('Villa plan imported successfully!');
+      } catch (error) {
+        alert('Error importing villa plan. Please check the file format.');
+        console.error('Import error:', error);
+      }
+    };
+    reader.readAsText(file);
   };
 
   const zoomIn = () => setCanvasScale(Math.min(6, canvasScale + 0.5));
@@ -127,6 +190,16 @@ export default function Builder() {
             />
           </div>
           <div className="flex gap-2">
+            <label className="btn btn-secondary" style={{ margin: 0 }}>
+              <Upload size={20} />
+              Import
+              <input
+                type="file"
+                accept=".json"
+                onChange={handleImport}
+                style={{ display: 'none' }}
+              />
+            </label>
             <button className="btn btn-secondary" onClick={handleExport}>
               <Download size={20} />
               Export
@@ -231,22 +304,42 @@ export default function Builder() {
                     (Drag to canvas)
                   </span>
                 </h3>
+                <input
+                  type="text"
+                  placeholder="Search rooms..."
+                  value={roomSearch}
+                  onChange={(e) => setRoomSearch(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '0.5rem',
+                    marginBottom: '1rem',
+                    borderRadius: '0.5rem',
+                    border: '1px solid var(--border)',
+                    background: 'var(--bg-tertiary)',
+                    color: 'var(--text-primary)'
+                  }}
+                />
                 <div className="room-categories">
-                  {Object.values(ROOM_TYPES).map(roomType => (
-                    <div
-                      key={roomType.id}
-                      className="room-item"
-                      draggable
-                      onDragStart={(e) => handleDragStart(e, roomType.id)}
-                      style={{ borderColor: roomType.color }}
-                    >
-                      <span className="room-icon">{roomType.icon}</span>
-                      <span className="room-name">{roomType.name}</span>
-                      <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)' }}>
-                        {roomType.defaultSize.width}×{roomType.defaultSize.height}m
-                      </span>
-                    </div>
-                  ))}
+                  {Object.values(ROOM_TYPES)
+                    .filter(roomType =>
+                      roomType.name.toLowerCase().includes(roomSearch.toLowerCase()) ||
+                      roomType.id.toLowerCase().includes(roomSearch.toLowerCase())
+                    )
+                    .map(roomType => (
+                      <div
+                        key={roomType.id}
+                        className="room-item"
+                        draggable
+                        onDragStart={(e) => handleDragStart(e, roomType.id)}
+                        style={{ borderColor: roomType.color }}
+                      >
+                        <span className="room-icon">{roomType.icon}</span>
+                        <span className="room-name">{roomType.name}</span>
+                        <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)' }}>
+                          {roomType.defaultSize.width}×{roomType.defaultSize.height}m
+                        </span>
+                      </div>
+                    ))}
                 </div>
               </div>
 
@@ -284,15 +377,20 @@ export default function Builder() {
                 >
                   {rooms[currentFloor]?.map(room => {
                     const roomType = Object.values(ROOM_TYPES).find(rt => rt.id === room.type);
+                    const overlappingRooms = getOverlappingRooms(room);
+                    const hasOverlap = overlappingRooms.length > 0;
+
                     return (
                       <DraggableRoom
                         key={room.id}
                         room={room}
                         roomType={roomType}
                         isSelected={selectedRoom?.id === room.id}
+                        hasOverlap={hasOverlap}
                         onClick={handleRoomClick}
                         onUpdate={handleRoomUpdate}
                         onDelete={(id) => deleteRoom(currentFloor, id)}
+                        onDuplicate={handleRoomDuplicate}
                         scale={canvasScale}
                       />
                     );
@@ -521,6 +619,7 @@ export default function Builder() {
 function RoomFeatureModal({ room, onClose, onSave }) {
   const [features, setFeatures] = useState(room.features || {});
   const [roomName, setRoomName] = useState(room.customName || '');
+  const [expandedCategories, setExpandedCategories] = useState({});
 
   const roomType = Object.values(ROOM_TYPES).find(rt => rt.id === room.type);
   const availableFeatures = roomType?.features || [];
@@ -535,8 +634,27 @@ function RoomFeatureModal({ room, onClose, onSave }) {
     }));
   };
 
+  const toggleCategory = (categoryKey) => {
+    setExpandedCategories(prev => ({
+      ...prev,
+      [categoryKey]: !prev[categoryKey]
+    }));
+  };
+
+  const expandAll = () => {
+    const expanded = {};
+    availableFeatures.forEach(cat => {
+      expanded[cat] = true;
+    });
+    setExpandedCategories(expanded);
+  };
+
+  const collapseAll = () => {
+    setExpandedCategories({});
+  };
+
   const handleSave = () => {
-    onSave({ ...features, customName: roomName });
+    onSave(features, roomName);
   };
 
   return (
@@ -565,56 +683,91 @@ function RoomFeatureModal({ room, onClose, onSave }) {
             />
           </div>
 
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+            <h3 style={{ margin: 0 }}>Features & Customization</h3>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <button className="btn btn-sm btn-secondary" onClick={expandAll}>
+                Expand All
+              </button>
+              <button className="btn btn-sm btn-secondary" onClick={collapseAll}>
+                Collapse All
+              </button>
+            </div>
+          </div>
+
           <div className="feature-editor">
             {availableFeatures.map(featureCat => {
               const category = FEATURE_CATEGORIES[featureCat];
               if (!category) return null;
 
+              const isExpanded = expandedCategories[featureCat];
+              const configuredCount = Object.keys(features[featureCat] || {}).length;
+
               return (
                 <div key={featureCat} className="feature-category">
-                  <div className="feature-category-header">
-                    <span className="feature-category-icon">{category.icon}</span>
-                    <span>{category.name}</span>
+                  <div
+                    className="feature-category-header clickable"
+                    onClick={() => toggleCategory(featureCat)}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: 1 }}>
+                      <span className="feature-category-icon">{category.icon}</span>
+                      <span>{category.name}</span>
+                      {configuredCount > 0 && (
+                        <span className="badge badge-success" style={{ fontSize: '0.75rem' }}>
+                          {configuredCount} configured
+                        </span>
+                      )}
+                    </div>
+                    <span style={{ fontSize: '1.25rem', transition: 'transform 0.2s', transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)' }}>
+                      ▼
+                    </span>
                   </div>
-                  <div className="feature-options">
-                    {Object.entries(category.options).map(([optionKey, option]) => (
-                      <div key={optionKey} className="feature-option">
-                        <label className="feature-option-label">
-                          <span className="feature-option-icon">{option.icon}</span>
-                          {option.name}
-                        </label>
-                        {option.type === 'number' && (
-                          <input
-                            type="number"
-                            min={option.min}
-                            max={option.max}
-                            value={features[featureCat]?.[optionKey] ?? option.default}
-                            onChange={(e) => handleFeatureChange(featureCat, optionKey, parseInt(e.target.value))}
-                          />
-                        )}
-                        {option.type === 'boolean' && (
-                          <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            <input
-                              type="checkbox"
-                              checked={features[featureCat]?.[optionKey] ?? option.default}
-                              onChange={(e) => handleFeatureChange(featureCat, optionKey, e.target.checked)}
-                            />
-                            <span>{features[featureCat]?.[optionKey] ? 'Yes' : 'No'}</span>
+                  {isExpanded && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      className="feature-options"
+                    >
+                      {Object.entries(category.options).map(([optionKey, option]) => (
+                        <div key={optionKey} className="feature-option">
+                          <label className="feature-option-label">
+                            <span className="feature-option-icon">{option.icon}</span>
+                            {option.name}
                           </label>
-                        )}
-                        {option.type === 'select' && (
-                          <select
-                            value={features[featureCat]?.[optionKey] ?? option.default}
-                            onChange={(e) => handleFeatureChange(featureCat, optionKey, e.target.value)}
-                          >
-                            {option.options.map(opt => (
-                              <option key={opt} value={opt}>{opt}</option>
-                            ))}
-                          </select>
-                        )}
-                      </div>
-                    ))}
-                  </div>
+                          {option.type === 'number' && (
+                            <input
+                              type="number"
+                              min={option.min}
+                              max={option.max}
+                              value={features[featureCat]?.[optionKey] ?? option.default}
+                              onChange={(e) => handleFeatureChange(featureCat, optionKey, parseInt(e.target.value))}
+                            />
+                          )}
+                          {option.type === 'boolean' && (
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                              <input
+                                type="checkbox"
+                                checked={features[featureCat]?.[optionKey] ?? option.default}
+                                onChange={(e) => handleFeatureChange(featureCat, optionKey, e.target.checked)}
+                              />
+                              <span>{features[featureCat]?.[optionKey] ? 'Yes' : 'No'}</span>
+                            </label>
+                          )}
+                          {option.type === 'select' && (
+                            <select
+                              value={features[featureCat]?.[optionKey] ?? option.default}
+                              onChange={(e) => handleFeatureChange(featureCat, optionKey, e.target.value)}
+                            >
+                              {option.options.map(opt => (
+                                <option key={opt} value={opt}>{opt}</option>
+                              ))}
+                            </select>
+                          )}
+                        </div>
+                      ))}
+                    </motion.div>
+                  )}
                 </div>
               );
             })}
