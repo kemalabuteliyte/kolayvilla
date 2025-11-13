@@ -143,12 +143,22 @@ export default function Builder() {
     }
   };
 
-  const handleSaveFeatures = (features, customName) => {
+  const handleSaveFeatures = (features, customName, newSize) => {
     if (selectedRoomForEdit) {
       updateRoomFeatures(currentFloor, selectedRoomForEdit.id, features);
+
+      const updates = {};
       if (customName !== selectedRoomForEdit.customName) {
-        updateRoom(currentFloor, selectedRoomForEdit.id, { customName });
+        updates.customName = customName;
       }
+      if (newSize && (newSize.width !== selectedRoomForEdit.size.width || newSize.height !== selectedRoomForEdit.size.height)) {
+        updates.size = newSize;
+      }
+
+      if (Object.keys(updates).length > 0) {
+        updateRoom(currentFloor, selectedRoomForEdit.id, updates);
+      }
+
       setShowRoomModal(false);
       setSelectedRoom(null);
     }
@@ -1340,6 +1350,8 @@ export default function Builder() {
 function RoomFeatureModal({ room, onClose, onSave }) {
   const [features, setFeatures] = useState(room.features || {});
   const [roomName, setRoomName] = useState(room.customName || '');
+  const [roomWidth, setRoomWidth] = useState(room.size.width);
+  const [roomHeight, setRoomHeight] = useState(room.size.height);
   const [expandedCategories, setExpandedCategories] = useState({});
 
   const roomType = Object.values(ROOM_TYPES).find(rt => rt.id === room.type);
@@ -1375,7 +1387,11 @@ function RoomFeatureModal({ room, onClose, onSave }) {
   };
 
   const handleSave = () => {
-    onSave(features, roomName);
+    const newSize = {
+      width: Math.max(roomType?.minSize.width || 2, Math.round(roomWidth / 2) * 2),
+      height: Math.max(roomType?.minSize.height || 2, Math.round(roomHeight / 2) * 2)
+    };
+    onSave(features, roomName, newSize);
   };
 
   return (
@@ -1402,6 +1418,46 @@ function RoomFeatureModal({ room, onClose, onSave }) {
               onChange={(e) => setRoomName(e.target.value)}
               placeholder={room.name}
             />
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
+            <div className="input-group">
+              <label>Width (m)</label>
+              <input
+                type="number"
+                min={roomType?.minSize.width || 2}
+                max={100}
+                step="0.5"
+                value={roomWidth}
+                onChange={(e) => setRoomWidth(parseFloat(e.target.value))}
+              />
+              <small style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>
+                Min: {roomType?.minSize.width || 2}m
+              </small>
+            </div>
+            <div className="input-group">
+              <label>Height (m)</label>
+              <input
+                type="number"
+                min={roomType?.minSize.height || 2}
+                max={100}
+                step="0.5"
+                value={roomHeight}
+                onChange={(e) => setRoomHeight(parseFloat(e.target.value))}
+              />
+              <small style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>
+                Min: {roomType?.minSize.height || 2}m
+              </small>
+            </div>
+          </div>
+
+          <div style={{ padding: '0.75rem', background: 'var(--bg-tertiary)', borderRadius: '0.5rem', marginBottom: '1.5rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem' }}>
+              <span style={{ color: 'var(--text-secondary)' }}>Room Area:</span>
+              <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
+                {(roomWidth * roomHeight).toFixed(2)}m²
+              </span>
+            </div>
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>

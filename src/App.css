@@ -433,18 +433,21 @@
   background: var(--primary);
   border: 2px solid white;
   box-shadow: 0 2px 4px var(--shadow);
-  z-index: 30;
+  z-index: 50;
   opacity: 0;
-  transition: opacity 0.2s ease;
+  transition: all 0.2s ease;
+  pointer-events: auto;
 }
 
 .room-element.selected .resize-handle {
   opacity: 1;
+  pointer-events: auto;
 }
 
 .resize-handle:hover {
   background: var(--primary-dark);
-  transform: scale(1.2);
+  transform: scale(1.3);
+  box-shadow: 0 4px 8px var(--shadow);
 }
 
 /* Corner Handles */
@@ -486,32 +489,32 @@
 .resize-nw,
 .resize-se,
 .resize-sw {
-  width: 12px;
-  height: 12px;
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
 }
 
 .resize-ne {
-  top: -6px;
-  right: -6px;
+  top: -8px;
+  right: -8px;
   cursor: nesw-resize;
 }
 
 .resize-nw {
-  top: -6px;
-  left: -6px;
+  top: -8px;
+  left: -8px;
   cursor: nwse-resize;
 }
 
 .resize-se {
-  bottom: -6px;
-  right: -6px;
+  bottom: -8px;
+  right: -8px;
   cursor: nwse-resize;
 }
 
 .resize-sw {
-  bottom: -6px;
-  left: -6px;
+  bottom: -8px;
+  left: -8px;
   cursor: nesw-resize;
 }
 
