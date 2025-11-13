@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useVillaStore } from '../store/villaStore';
 import ROOM_TYPES, { FEATURE_CATEGORIES } from '../data/roomTypes';
-import { Download, Save, Grid, ZoomIn, ZoomOut, Upload, Keyboard, Undo2, Redo2 } from 'lucide-react';
+import { Download, Save, Grid, ZoomIn, ZoomOut, Upload, Keyboard, Undo2, Redo2, Copy, AlignLeft, AlignRight, AlignCenter, AlignHorizontalJustifyCenter, AlignVerticalJustifyCenter, Maximize2 } from 'lucide-react';
 import { DraggableRoom } from '../components/DraggableRoom';
 
 export default function Builder() {
@@ -16,6 +16,9 @@ export default function Builder() {
   const [history, setHistory] = useState([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [showStats, setShowStats] = useState(false);
+  const [copiedRoom, setCopiedRoom] = useState(null);
+  const [selectedRooms, setSelectedRooms] = useState([]);
+  const [gridSize, setGridSize] = useState(2);
   const canvasRef = useRef(null);
 
   const {
@@ -177,6 +180,75 @@ export default function Builder() {
 
   const zoomIn = () => setCanvasScale(Math.min(6, canvasScale + 0.5));
   const zoomOut = () => setCanvasScale(Math.max(2, canvasScale - 0.5));
+  const zoomToFit = () => {
+    setCanvasScale(4);
+  };
+  const zoomActual = () => {
+    setCanvasScale(5);
+  };
+
+  // Copy/Paste functionality
+  const copyRoom = () => {
+    if (selectedRoom) {
+      setCopiedRoom(selectedRoom);
+    }
+  };
+
+  const pasteRoom = () => {
+    if (copiedRoom) {
+      const roomType = Object.values(ROOM_TYPES).find(rt => rt.id === copiedRoom.type);
+      if (!roomType) return;
+
+      const newRoomId = addRoom(currentFloor, roomType);
+      if (newRoomId) {
+        updateRoom(currentFloor, newRoomId, {
+          position: { x: copiedRoom.position.x + 4, y: copiedRoom.position.y + 4 },
+          size: copiedRoom.size,
+          features: { ...copiedRoom.features },
+          customName: copiedRoom.customName ? `${copiedRoom.customName} (Pasted)` : ''
+        });
+      }
+    }
+  };
+
+  // Alignment functions
+  const alignRoomsLeft = () => {
+    if (!selectedRoom || !rooms[currentFloor]) return;
+    const minX = Math.min(...rooms[currentFloor].map(r => r.position.x));
+    updateRoom(currentFloor, selectedRoom.id, {
+      position: { x: minX, y: selectedRoom.position.y }
+    });
+  };
+
+  const alignRoomsRight = () => {
+    if (!selectedRoom || !rooms[currentFloor] || !canvasRef.current) return;
+    const canvasWidth = canvasRef.current.offsetWidth / canvasScale;
+    updateRoom(currentFloor, selectedRoom.id, {
+      position: { x: canvasWidth - selectedRoom.size.width, y: selectedRoom.position.y }
+    });
+  };
+
+  const alignRoomsCenter = () => {
+    if (!selectedRoom || !canvasRef.current) return;
+    const canvasWidth = canvasRef.current.offsetWidth / canvasScale;
+    updateRoom(currentFloor, selectedRoom.id, {
+      position: {
+        x: (canvasWidth - selectedRoom.size.width) / 2,
+        y: selectedRoom.position.y
+      }
+    });
+  };
+
+  const alignRoomsMiddle = () => {
+    if (!selectedRoom || !canvasRef.current) return;
+    const canvasHeight = canvasRef.current.offsetHeight / canvasScale;
+    updateRoom(currentFloor, selectedRoom.id, {
+      position: {
+        x: selectedRoom.position.x,
+        y: (canvasHeight - selectedRoom.size.height) / 2
+      }
+    });
+  };
 
   // Undo/Redo functionality
   const saveToHistory = () => {
@@ -257,6 +329,33 @@ export default function Builder() {
       if ((e.key === 'e' || e.key === 'E') && selectedRoom) {
         e.preventDefault();
         handleRoomClick(selectedRoom);
+      }
+
+      // Ctrl/Cmd + C = Copy room
+      if ((e.ctrlKey || e.metaKey) && e.key === 'c' && selectedRoom) {
+        e.preventDefault();
+        copyRoom();
+      }
+
+      // Ctrl/Cmd + V = Paste room
+      if ((e.ctrlKey || e.metaKey) && e.key === 'v' && copiedRoom) {
+        e.preventDefault();
+        pasteRoom();
+      }
+
+      // Number keys 1-4 = Switch to floor
+      if (['1', '2', '3', '4'].includes(e.key)) {
+        const floor = parseInt(e.key);
+        if (floor <= numberOfFloors) {
+          e.preventDefault();
+          setCurrentFloor(floor);
+        }
+      }
+
+      // 0 = Zoom to fit
+      if (e.key === '0') {
+        e.preventDefault();
+        zoomToFit();
       }
 
       // Escape = Close modal or deselect
@@ -470,20 +569,87 @@ export default function Builder() {
                 <button
                   className={`btn btn-sm ${showGrid ? 'btn-primary' : 'btn-secondary'}`}
                   onClick={() => setShowGrid(!showGrid)}
+                  title="Toggle Grid (G)"
                 >
                   <Grid size={16} />
                   Grid
                 </button>
-                <button className="btn btn-secondary btn-sm" onClick={zoomOut}>
+                <button className="btn btn-secondary btn-sm" onClick={zoomOut} title="Zoom Out (-)">
                   <ZoomOut size={16} />
                 </button>
                 <span style={{ padding: '0 0.5rem', color: 'var(--text-secondary)' }}>
                   {Math.round((canvasScale / 4) * 100)}%
                 </span>
-                <button className="btn btn-secondary btn-sm" onClick={zoomIn}>
+                <button className="btn btn-secondary btn-sm" onClick={zoomIn} title="Zoom In (+)">
                   <ZoomIn size={16} />
                 </button>
+                <button className="btn btn-secondary btn-sm" onClick={zoomToFit} title="Zoom to Fit (0)">
+                  <Maximize2 size={16} />
+                </button>
               </div>
+
+              {/* Quick Actions Toolbar */}
+              {selectedRoom && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="quick-actions-toolbar"
+                >
+                  <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                    Quick Actions:
+                  </span>
+                  <div className="quick-actions-group">
+                    <button
+                      className="btn btn-secondary btn-sm"
+                      onClick={copyRoom}
+                      title="Copy Room (Ctrl/Cmd+C)"
+                    >
+                      <Copy size={16} />
+                    </button>
+                    {copiedRoom && (
+                      <button
+                        className="btn btn-primary btn-sm"
+                        onClick={pasteRoom}
+                        title="Paste Room (Ctrl/Cmd+V)"
+                      >
+                        📋
+                      </button>
+                    )}
+                  </div>
+                  <div className="quick-actions-divider"></div>
+                  <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>Align:</span>
+                  <div className="quick-actions-group">
+                    <button
+                      className="btn btn-secondary btn-sm"
+                      onClick={alignRoomsLeft}
+                      title="Align Left"
+                    >
+                      <AlignLeft size={16} />
+                    </button>
+                    <button
+                      className="btn btn-secondary btn-sm"
+                      onClick={alignRoomsCenter}
+                      title="Align Center Horizontally"
+                    >
+                      <AlignCenter size={16} />
+                    </button>
+                    <button
+                      className="btn btn-secondary btn-sm"
+                      onClick={alignRoomsRight}
+                      title="Align Right"
+                    >
+                      <AlignRight size={16} />
+                    </button>
+                    <button
+                      className="btn btn-secondary btn-sm"
+                      onClick={alignRoomsMiddle}
+                      title="Align Middle Vertically"
+                    >
+                      <AlignHorizontalJustifyCenter size={16} />
+                    </button>
+                  </div>
+                </motion.div>
+              )}
 
               {/* Canvas */}
               <div className="canvas-container">
@@ -761,6 +927,10 @@ export default function Builder() {
                         <span>Navigate between floors</span>
                       </div>
                       <div className="shortcut-item">
+                        <kbd>1</kbd> - <kbd>4</kbd>
+                        <span>Jump to specific floor</span>
+                      </div>
+                      <div className="shortcut-item">
                         <kbd>Esc</kbd>
                         <span>Close modal / Deselect room</span>
                       </div>
@@ -774,6 +944,14 @@ export default function Builder() {
                       <div className="shortcut-item">
                         <kbd>D</kbd>
                         <span>Duplicate selected room</span>
+                      </div>
+                      <div className="shortcut-item">
+                        <kbd>Ctrl/Cmd</kbd> + <kbd>C</kbd>
+                        <span>Copy selected room</span>
+                      </div>
+                      <div className="shortcut-item">
+                        <kbd>Ctrl/Cmd</kbd> + <kbd>V</kbd>
+                        <span>Paste copied room</span>
                       </div>
                       <div className="shortcut-item">
                         <kbd>Delete</kbd> / <kbd>Backspace</kbd>
@@ -793,6 +971,10 @@ export default function Builder() {
                       <div className="shortcut-item">
                         <kbd>-</kbd>
                         <span>Zoom out</span>
+                      </div>
+                      <div className="shortcut-item">
+                        <kbd>0</kbd>
+                        <span>Zoom to fit</span>
                       </div>
                       <div className="shortcut-item">
                         <kbd>S</kbd>
