@@ -1,4 +1,0 @@
-# Copy this file to .dev.vars for local development
-# .dev.vars is gitignored and won't be committed
-
-JWT_SECRET=your-local-jwt-secret-change-this

@@ -1,336 +1,310 @@
-# KolayVilla - Real Estate Listing Platform
+# KolayVilla - Interactive Villa Plan Builder 🏡
 
-A modern real estate listing platform built with Cloudflare Workers, D1 (SQLite), R2 (Object Storage), and Hono framework.
+A modern interactive villa architecture plan builder that allows you to design and customize your dream villa with an intuitive visual interface. Built with React, Vite, Framer Motion, and Zustand.
 
-## Features
+![Villa Builder](https://img.shields.io/badge/React-18.3-blue)
+![Vite](https://img.shields.io/badge/Vite-5.4-purple)
+![License](https://img.shields.io/badge/license-MIT-green)
 
-- **User Authentication**: JWT-based authentication with email and phone number
-- **Two User Types**:
-  - **Normal Users**: Can browse listings, create listings (if enabled), and message other users
-  - **Agents**: Real estate agents with dedicated profile pages showing all their listings
-- **Property Listings**: Full CRUD operations for property listings with image upload support
-- **Messaging System**: Users can communicate with each other about properties
-- **Admin Dashboard**: Manage users, toggle listing permissions, and moderate content
-- **Search & Filter**: Search properties by location, price, type, etc.
-- **Responsive Design**: Mobile-friendly interface
+## ✨ Features
 
-## Tech Stack
+### Visual Builder
+- **Interactive Floor Plan Designer**: Drag-and-drop interface for placing rooms
+- **Multi-Floor Support**: Design villas with up to 4 floors
+- **Real-time Preview**: See your design come to life instantly
+- **Room Placement**: Visually position and size rooms on each floor
 
-- **Backend**: Cloudflare Workers with Hono framework
-- **Database**: Cloudflare D1 (SQLite)
-- **Storage**: Cloudflare R2 for images
-- **Authentication**: JWT (JSON Web Tokens)
-- **Frontend**: Vanilla JavaScript (SPA)
+### Comprehensive Room Types
+- Living & Dining Rooms
+- Multiple Bedroom Types (Master, Guest, Children's)
+- Bathrooms (Full, Half, Master with spa features)
+- Kitchen with full appliance customization
+- Home Office/Study
+- Entertainment (Home Theater, Library)
+- Fitness & Wellness (Gym, Spa)
+- Utility Rooms (Laundry, Storage, Pantry)
+- Outdoor Spaces (Pool, Terrace, Balcony, Garden)
+- Garage with EV charging options
+- Wine Cellar
+- Walk-in Closets
 
-## Project Structure
+### Detailed Room Customization
+Each room can be customized with extensive features including:
+
+#### Electrical Features
+- Wall outlets (regular and USB)
+- Light switches (standard, dimmer, smart)
+- Network ports
+- Smart home integration
+
+#### Lighting Options
+- Ceiling lights (chandelier, pendant, recessed, track)
+- Wall sconces
+- Floor lamps
+- LED strips
+- Natural light sources (windows, skylights, French doors)
+
+#### Climate Control
+- AC units
+- Heating systems (radiator, underfloor, central HVAC, fireplace)
+- Ceiling fans
+- Smart thermostats
+
+#### Plumbing (where applicable)
+- Sinks, toilets, showers, bathtubs, bidets
+- Hot water system selection
+- Water pressure options
+
+#### Technology
+- Network/ethernet ports
+- TV mounting
+- Built-in speakers
+- Security cameras
+- Intercom systems
+
+#### Storage Solutions
+- Built-in closets
+- Shelving systems
+- Cabinets and drawers
+- Custom configurations
+
+#### Accessibility Features
+- Wheelchair accessible options
+- Wide doorways
+- Grab bars
+- Step-free entry
+- Lower switch heights
+
+#### Flooring & Materials
+- Multiple material choices (hardwood, tile, marble, carpet, etc.)
+- Underfloor heating
+- Custom finishes
+
+#### Special Features
+- Fireplaces (wood, gas, electric)
+- Bay windows
+- French doors
+- Vaulted ceilings
+- Built-in bars
+- Home theater acoustics
+- Pool features (heating, lighting, waterfalls)
+
+### Premade Templates
+Start quickly with professional villa templates:
+- **Modern Luxury Villa** (3 floors, 450m²)
+- **Cozy Family Home** (2 floors, 280m²)
+- **Minimalist Modern** (2 floors, 320m²)
+- **Mediterranean Paradise** (2 floors, 380m²)
+- **Compact Starter Villa** (1 floor, 160m²)
+- **Executive Estate** (4 floors, 620m²)
+
+All templates are fully customizable!
+
+### Export & Save
+- Export complete villa plans as JSON
+- Save and load your projects
+- Detailed room specifications
+- Feature summaries
+
+## 🚀 Getting Started
+
+### Prerequisites
+- Node.js 18 or higher
+- npm or yarn
+
+### Installation
+
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/yourusername/kolayvilla.git
+   cd kolayvilla
+   ```
+
+2. **Install dependencies**
+   ```bash
+   npm install
+   ```
+
+3. **Start the development server**
+   ```bash
+   npm run dev
+   ```
+
+4. **Open your browser**
+   Navigate to `http://localhost:3000`
+
+### Building for Production
+
+```bash
+npm run build
+```
+
+The built files will be in the `dist/` directory.
+
+### Preview Production Build
+
+```bash
+npm run preview
+```
+
+## 📖 How to Use
+
+### 1. Start Building
+- Click "Start Building" from the home page
+- Or choose a premade template to customize
+
+### 2. Configure Your Villa
+- Set the number of floors (1-4)
+- Choose villa style
+- Configure basic parameters
+
+### 3. Design Floor Plans
+- Select a floor from the floor selector
+- Click on room types to add them to your floor
+- Position and resize rooms visually
+- Add multiple rooms of any type
+
+### 4. Customize Room Details
+- Click on any room to customize its features
+- Set electrical outlets, lighting, climate control
+- Choose plumbing fixtures and appliances
+- Configure storage and accessibility features
+- Add special features and finishes
+
+### 5. Preview & Export
+- Review your complete villa design
+- See room counts and specifications
+- Export your plan as JSON for architecture software
+- Save your project to continue later
+
+## 🛠️ Tech Stack
+
+- **React 18.3** - UI framework
+- **Vite 5.4** - Build tool and dev server
+- **Zustand 4.5** - State management
+- **Framer Motion 11.5** - Animations
+- **React Router 6.26** - Navigation
+- **Lucide React** - Icons
+
+## 📁 Project Structure
 
 ```
 /kolayvilla
-├── /backend
-│   ├── /models           # Data models (User, Listing, Message)
-│   ├── /controllers      # Request handlers
-│   ├── /routes           # API route definitions
-│   ├── /middleware       # Authentication middleware
-│   ├── /utils            # Utility functions (JWT)
-│   └── worker.js         # Main Cloudflare Worker entry point
-├── /migrations           # Database schema migrations
-├── package.json          # Project dependencies
-└── wrangler.toml         # Cloudflare Workers configuration
+├── public/              # Static assets
+├── src/
+│   ├── components/      # Reusable React components
+│   ├── pages/           # Page components
+│   │   ├── Home.jsx     # Landing page
+│   │   ├── Templates.jsx # Template gallery
+│   │   └── Builder.jsx  # Main builder interface
+│   ├── data/
+│   │   ├── roomTypes.js     # Room definitions and features
+│   │   └── villaTemplates.js # Premade villa templates
+│   ├── store/
+│   │   └── villaStore.js # Zustand state management
+│   ├── App.jsx          # Main app component
+│   ├── main.jsx         # App entry point
+│   └── index.css        # Global styles
+├── index.html           # HTML template
+├── vite.config.js       # Vite configuration
+└── package.json         # Dependencies
 ```
 
-## Prerequisites
+## 🎨 Customization
 
-- Node.js 18+
-- npm or yarn
-- Cloudflare account
-- Wrangler CLI installed globally: `npm install -g wrangler`
+### Adding New Room Types
 
-## Setup Instructions
+Edit `src/data/roomTypes.js`:
 
-### 1. Install Dependencies
-
-```bash
-npm install
-```
-
-### 2. Login to Cloudflare
-
-```bash
-wrangler login
-```
-
-### 3. Create D1 Database
-
-```bash
-wrangler d1 create kolayvilla-db
-```
-
-Copy the database ID from the output and update `wrangler.toml`:
-
-```toml
-[[d1_databases]]
-binding = "DB"
-database_name = "kolayvilla-db"
-database_id = "YOUR_DATABASE_ID_HERE"  # Replace with actual ID
-```
-
-### 4. Run Database Migrations
-
-```bash
-wrangler d1 execute kolayvilla-db --file=./migrations/0001_initial_schema.sql
-```
-
-For production:
-```bash
-wrangler d1 execute kolayvilla-db --file=./migrations/0001_initial_schema.sql --remote
-```
-
-### 5. Create R2 Bucket
-
-```bash
-wrangler r2 bucket create kolayvilla-images
-```
-
-### 6. Update Environment Variables
-
-Update `wrangler.toml` with your JWT secret:
-
-```toml
-[vars]
-JWT_SECRET = "your-secure-random-jwt-secret-here"  # Change this!
-```
-
-**IMPORTANT**: For production, use a strong, randomly generated secret:
-
-```bash
-# Generate a secure random secret
-node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
-```
-
-### 7. Local Development
-
-Start the development server:
-
-```bash
-npm run dev
-# or
-wrangler dev
-```
-
-The app will be available at `http://localhost:8787`
-
-### 8. Deploy to Production
-
-```bash
-npm run deploy
-# or
-wrangler deploy
-```
-
-## API Documentation
-
-### Authentication Endpoints
-
-#### Register
-- **POST** `/api/auth/register`
-- **Body**:
-  ```json
-  {
-    "email": "user@example.com",
-    "phone_number": "+1234567890",
-    "password": "password123",
-    "user_type": "normal"  // or "agent"
+```javascript
+export const ROOM_TYPES = {
+  YOUR_NEW_ROOM: {
+    id: 'your_new_room',
+    name: 'Your New Room',
+    icon: '🏠',
+    color: '#FF6B6B',
+    defaultSize: { width: 12, height: 12 },
+    minSize: { width: 8, height: 8 },
+    features: ['electrical', 'lighting', 'climate']
   }
-  ```
+};
+```
 
-#### Login
-- **POST** `/api/auth/login`
-- **Body**:
-  ```json
-  {
-    "email": "user@example.com",
-    "password": "password123"
+### Adding New Features
+
+Edit `src/data/roomTypes.js` in the `FEATURE_CATEGORIES` object:
+
+```javascript
+export const FEATURE_CATEGORIES = {
+  your_feature: {
+    name: 'Your Feature Category',
+    icon: '⭐',
+    options: {
+      your_option: {
+        name: 'Your Option',
+        type: 'number', // or 'boolean', 'select'
+        default: 1,
+        min: 0,
+        max: 10,
+        icon: '🔧'
+      }
+    }
   }
-  ```
-
-#### Get Current User
-- **GET** `/api/auth/me`
-- **Headers**: `Authorization: Bearer <token>`
-
-### User Endpoints
-
-- **GET** `/api/users/agents` - Get all agents (public)
-- **GET** `/api/users/:id` - Get user by ID (public)
-- **GET** `/api/users` - Get all users (admin only)
-- **PUT** `/api/users/:id` - Update user (self or admin)
-- **DELETE** `/api/users/:id` - Delete user (admin only)
-- **POST** `/api/users/:id/toggle-listing` - Toggle user listing permission (admin only)
-- **POST** `/api/users/:id/toggle-active` - Toggle user active status (admin only)
-
-### Listing Endpoints
-
-- **GET** `/api/listings` - Get all active listings (public)
-- **GET** `/api/listings/search` - Search listings (public)
-- **GET** `/api/listings/my` - Get current user's listings (protected)
-- **GET** `/api/listings/agent/:id` - Get agent's listings (public)
-- **GET** `/api/listings/:id` - Get listing by ID (public)
-- **POST** `/api/listings` - Create listing (protected)
-- **PUT** `/api/listings/:id` - Update listing (protected)
-- **DELETE** `/api/listings/:id` - Delete listing (protected)
-- **POST** `/api/listings/:id/images` - Upload image (protected)
-- **DELETE** `/api/listings/:id/images/:imageId` - Delete image (protected)
-
-### Message Endpoints
-
-- **POST** `/api/messages` - Send message (protected)
-- **GET** `/api/messages/inbox` - Get inbox (protected)
-- **GET** `/api/messages/sent` - Get sent messages (protected)
-- **GET** `/api/messages/unread-count` - Get unread count (protected)
-- **GET** `/api/messages/conversation/:otherUserId` - Get conversation (protected)
-- **GET** `/api/messages/listing/:listingId` - Get messages for listing (protected)
-- **PUT** `/api/messages/:id/read` - Mark as read (protected)
-- **DELETE** `/api/messages/:id` - Delete message (protected)
-
-## Database Schema
-
-### Users Table
-- `id` - Primary key
-- `email` - Unique email address
-- `phone_number` - Unique phone number
-- `password_hash` - Hashed password
-- `user_type` - 'normal' or 'agent'
-- `can_list` - Whether user can create listings (1 or 0)
-- `is_active` - Whether user account is active
-- `is_admin` - Whether user has admin privileges
-- `created_at` - Timestamp
-- `updated_at` - Timestamp
-
-### Listings Table
-- `id` - Primary key
-- `user_id` - Foreign key to users
-- `title` - Property title
-- `description` - Property description
-- `price` - Property price
-- `location` - Property location
-- `property_type` - Type of property
-- `bedrooms` - Number of bedrooms
-- `bathrooms` - Number of bathrooms
-- `area` - Property area in m²
-- `status` - 'active', 'sold', 'pending', or 'inactive'
-- `created_at` - Timestamp
-- `updated_at` - Timestamp
-
-### Listing Images Table
-- `id` - Primary key
-- `listing_id` - Foreign key to listings
-- `image_url` - Image URL in R2
-- `is_primary` - Whether this is the primary image
-- `display_order` - Display order
-- `created_at` - Timestamp
-
-### Messages Table
-- `id` - Primary key
-- `sender_id` - Foreign key to users
-- `recipient_id` - Foreign key to users
-- `listing_id` - Optional foreign key to listings
-- `subject` - Message subject
-- `message` - Message content
-- `is_read` - Whether message has been read
-- `created_at` - Timestamp
-
-## Creating an Admin User
-
-To create an admin user, you'll need to directly update the database:
-
-```bash
-# First, register a normal user through the API or UI
-# Then, update the user to be an admin
-
-wrangler d1 execute kolayvilla-db --command "UPDATE users SET is_admin = 1 WHERE email = 'admin@example.com'"
-
-# For production:
-wrangler d1 execute kolayvilla-db --command "UPDATE users SET is_admin = 1 WHERE email = 'admin@example.com'" --remote
+};
 ```
 
-## Features by User Type
+### Creating New Templates
 
-### Normal Users
-- Browse all listings
-- View agent profiles
-- Register and create account
-- Create listings (if `can_list = 1`)
-- Send and receive messages
-- Manage their own listings
+Edit `src/data/villaTemplates.js`:
 
-### Agents
-- All normal user features
-- Dedicated agent profile page
-- All their listings displayed on their profile
-- Listed in the "Agents" directory
-
-### Admins
-- All user features
-- Access to admin dashboard
-- Manage all users
-- Toggle user listing permissions
-- Activate/deactivate user accounts
-- Delete users and listings
-- View all messages
-
-## Troubleshooting
-
-### Database Connection Issues
-Make sure you've created the D1 database and updated the `database_id` in `wrangler.toml`.
-
-### R2 Image Upload Issues
-Ensure the R2 bucket exists and is properly configured in `wrangler.toml`.
-
-### Authentication Issues
-Verify that `JWT_SECRET` is set in `wrangler.toml` and matches between local and production environments.
-
-### Migration Issues
-If migrations fail, you can reset the database:
-```bash
-# Warning: This will delete all data!
-wrangler d1 execute kolayvilla-db --command "DROP TABLE IF EXISTS users; DROP TABLE IF EXISTS listings; DROP TABLE IF EXISTS listing_images; DROP TABLE IF EXISTS messages;"
-
-# Then re-run migrations
-wrangler d1 execute kolayvilla-db --file=./migrations/0001_initial_schema.sql
+```javascript
+export const VILLA_TEMPLATES = [
+  {
+    id: 'your_template',
+    name: 'Your Template Name',
+    description: 'Description of your template',
+    image: '🏠',
+    floors: 2,
+    totalArea: 300,
+    style: 'Modern',
+    features: {
+      pool: true,
+      garage: true,
+      gardenArea: 150
+    },
+    rooms: {
+      floor1: [
+        // Room definitions...
+      ]
+    }
+  }
+];
 ```
 
-## Development Tips
+## 🤝 Contributing
 
-### Testing API Endpoints
-Use curl or Postman to test endpoints:
+Contributions are welcome! Please feel free to submit a Pull Request.
 
-```bash
-# Register a user
-curl -X POST http://localhost:8787/api/auth/register \
-  -H "Content-Type: application/json" \
-  -d '{"email":"test@test.com","phone_number":"+1234567890","password":"test123","user_type":"normal"}'
+1. Fork the project
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
 
-# Login
-curl -X POST http://localhost:8787/api/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"email":"test@test.com","password":"test123"}'
+## 📝 License
 
-# Get listings
-curl http://localhost:8787/api/listings
-```
+This project is licensed under the MIT License - see the LICENSE file for details.
 
-### Viewing Database Contents
-```bash
-# Local database
-wrangler d1 execute kolayvilla-db --command "SELECT * FROM users"
+## 🙏 Acknowledgments
 
-# Production database
-wrangler d1 execute kolayvilla-db --command "SELECT * FROM users" --remote
-```
+- Icons by [Lucide](https://lucide.dev/)
+- Animations powered by [Framer Motion](https://www.framer.com/motion/)
+- State management by [Zustand](https://github.com/pmndrs/zustand)
 
-## License
+## 📧 Contact
 
-MIT
+For questions or support, please open an issue on GitHub.
 
-## Support
+---
 
-For issues and questions, please open an issue on GitHub.
+**Made with ❤️ for architecture enthusiasts and home designers**
