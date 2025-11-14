@@ -270,6 +270,7 @@
 
 .room-element.resizing {
   cursor: nwse-resize !important;
+  z-index: 100;
 }
 
 .room-element.overlap {
@@ -431,30 +432,28 @@
 .resize-handle {
   position: absolute;
   background: var(--primary);
-  border: 2px solid white;
-  box-shadow: 0 2px 4px var(--shadow);
-  z-index: 50;
+  border: 3px solid white;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3);
+  z-index: 100;
   opacity: 0;
   transition: all 0.2s ease;
-  pointer-events: auto;
 }
 
 .room-element.selected .resize-handle {
   opacity: 1;
-  pointer-events: auto;
 }
 
 .resize-handle:hover {
   background: var(--primary-dark);
-  transform: scale(1.3);
-  box-shadow: 0 4px 8px var(--shadow);
+  transform: scale(1.4);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
 }
 
-/* Corner Handles */
+/* Edge Handles */
 .resize-n,
 .resize-s {
-  width: 40px;
-  height: 6px;
+  width: 50px;
+  height: 8px;
   left: 50%;
   transform: translateX(-50%);
   cursor: ns-resize;
@@ -462,59 +461,60 @@
 
 .resize-e,
 .resize-w {
-  width: 6px;
-  height: 40px;
+  width: 8px;
+  height: 50px;
   top: 50%;
   transform: translateY(-50%);
   cursor: ew-resize;
 }
 
 .resize-n {
-  top: -3px;
+  top: -4px;
 }
 
 .resize-s {
-  bottom: -3px;
+  bottom: -4px;
 }
 
 .resize-e {
-  right: -3px;
+  right: -4px;
 }
 
 .resize-w {
-  left: -3px;
+  left: -4px;
 }
 
+/* Corner Handles - Larger and easier to click */
 .resize-ne,
 .resize-nw,
 .resize-se,
 .resize-sw {
-  width: 16px;
-  height: 16px;
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
 }
 
 .resize-ne {
-  top: -8px;
-  right: -8px;
+  top: -10px;
+  right: -10px;
   cursor: nesw-resize;
 }
 
 .resize-nw {
-  top: -8px;
-  left: -8px;
+  top: -10px;
+  left: -10px;
   cursor: nwse-resize;
 }
 
 .resize-se {
-  bottom: -8px;
-  right: -8px;
+  bottom: -10px;
+  right: -10px;
   cursor: nwse-resize;
 }
 
 .resize-sw {
-  bottom: -8px;
-  left: -8px;
+  bottom: -10px;
+  left: -10px;
   cursor: nesw-resize;
 }
 
