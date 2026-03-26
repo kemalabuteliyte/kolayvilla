@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 
 export function DraggableRoom({
   room,
@@ -16,44 +16,59 @@ export function DraggableRoom({
 }) {
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
-  const [resizeStart, setResizeStart] = useState({ x: 0, y: 0, width: 0, height: 0 });
   const roomRef = useRef(null);
+  const dragStartRef = useRef({ x: 0, y: 0 });
+  const resizeStartRef = useRef({ x: 0, y: 0, width: 0, height: 0, posX: 0, posY: 0 });
+  const resizeDirectionRef = useRef(null);
+  const actionRef = useRef(null); // 'drag' | 'resize' | null
 
   // Handle room dragging
-  const handleMouseDown = (e) => {
-    if (e.target.classList.contains('resize-handle')) return;
-    if (isLocked) return; // Prevent dragging if locked
+  const handleMouseDown = useCallback((e) => {
+    // Don't start drag if clicking on a resize handle or control button
+    if (e.target.closest('.resize-handle') || e.target.closest('.room-control-btn')) return;
+    if (isLocked) return;
     e.stopPropagation();
+    e.preventDefault();
+
+    actionRef.current = 'drag';
     setIsDragging(true);
-    setDragStart({
+    dragStartRef.current = {
       x: e.clientX - room.position.x * scale,
       y: e.clientY - room.position.y * scale
-    });
-  };
+    };
+  }, [room.position.x, room.position.y, scale, isLocked]);
 
   // Handle resize start
-  const handleResizeStart = (e, direction) => {
-    if (isLocked) return; // Prevent resizing if locked
+  const handleResizeStart = useCallback((e, direction) => {
+    if (isLocked) return;
     e.stopPropagation();
+    e.preventDefault();
+
+    actionRef.current = 'resize';
+    resizeDirectionRef.current = direction;
     setIsResizing(direction);
-    setResizeStart({
+    resizeStartRef.current = {
       x: e.clientX,
       y: e.clientY,
       width: room.size.width,
       height: room.size.height,
       posX: room.position.x,
       posY: room.position.y
-    });
-  };
+    };
+  }, [room.size.width, room.size.height, room.position.x, room.position.y, isLocked]);
 
   useEffect(() => {
-    const handleMouseMove = (e) => {
-      if (isDragging) {
-        const newX = Math.max(0, (e.clientX - dragStart.x) / scale);
-        const newY = Math.max(0, (e.clientY - dragStart.y) / scale);
+    if (!actionRef.current) return;
 
-        // Snap to grid (every 2 units)
+    const handleMouseMove = (e) => {
+      const action = actionRef.current;
+      if (!action) return;
+
+      if (action === 'drag') {
+        const ds = dragStartRef.current;
+        const newX = Math.max(0, (e.clientX - ds.x) / scale);
+        const newY = Math.max(0, (e.clientY - ds.y) / scale);
+
         const snappedX = Math.round(newX / 2) * 2;
         const snappedY = Math.round(newY / 2) * 2;
 
@@ -61,35 +76,39 @@ export function DraggableRoom({
           ...room,
           position: { x: snappedX, y: snappedY }
         });
-      } else if (isResizing) {
-        const deltaX = (e.clientX - resizeStart.x) / scale;
-        const deltaY = (e.clientY - resizeStart.y) / scale;
+      } else if (action === 'resize') {
+        const rs = resizeStartRef.current;
+        const dir = resizeDirectionRef.current;
+        if (!dir || !roomType) return;
 
-        let newWidth = resizeStart.width;
-        let newHeight = resizeStart.height;
-        let newX = resizeStart.posX;
-        let newY = resizeStart.posY;
+        const deltaX = (e.clientX - rs.x) / scale;
+        const deltaY = (e.clientY - rs.y) / scale;
 
-        if (isResizing.includes('e')) {
-          newWidth = Math.max(roomType.minSize.width, resizeStart.width + deltaX);
+        let newWidth = rs.width;
+        let newHeight = rs.height;
+        let newX = rs.posX;
+        let newY = rs.posY;
+
+        if (dir.includes('e')) {
+          newWidth = Math.max(roomType.minSize.width, rs.width + deltaX);
         }
-        if (isResizing.includes('s')) {
-          newHeight = Math.max(roomType.minSize.height, resizeStart.height + deltaY);
+        if (dir.includes('s')) {
+          newHeight = Math.max(roomType.minSize.height, rs.height + deltaY);
         }
-        if (isResizing.includes('w')) {
-          const widthDelta = Math.min(deltaX, resizeStart.width - roomType.minSize.width);
-          newWidth = resizeStart.width - widthDelta;
-          newX = resizeStart.posX + widthDelta;
+        if (dir.includes('w')) {
+          const widthDelta = Math.min(deltaX, rs.width - roomType.minSize.width);
+          newWidth = rs.width - widthDelta;
+          newX = rs.posX + widthDelta;
         }
-        if (isResizing.includes('n')) {
-          const heightDelta = Math.min(deltaY, resizeStart.height - roomType.minSize.height);
-          newHeight = resizeStart.height - heightDelta;
-          newY = resizeStart.posY + heightDelta;
+        if (dir.includes('n')) {
+          const heightDelta = Math.min(deltaY, rs.height - roomType.minSize.height);
+          newHeight = rs.height - heightDelta;
+          newY = rs.posY + heightDelta;
         }
 
         // Snap to grid
-        newWidth = Math.round(newWidth / 2) * 2;
-        newHeight = Math.round(newHeight / 2) * 2;
+        newWidth = Math.max(roomType.minSize.width, Math.round(newWidth / 2) * 2);
+        newHeight = Math.max(roomType.minSize.height, Math.round(newHeight / 2) * 2);
         newX = Math.round(newX / 2) * 2;
         newY = Math.round(newY / 2) * 2;
 
@@ -102,19 +121,19 @@ export function DraggableRoom({
     };
 
     const handleMouseUp = () => {
+      actionRef.current = null;
+      resizeDirectionRef.current = null;
       setIsDragging(false);
       setIsResizing(false);
     };
 
-    if (isDragging || isResizing) {
-      document.addEventListener('mousemove', handleMouseMove);
-      document.addEventListener('mouseup', handleMouseUp);
-      return () => {
-        document.removeEventListener('mousemove', handleMouseMove);
-        document.removeEventListener('mouseup', handleMouseUp);
-      };
-    }
-  }, [isDragging, isResizing, dragStart, resizeStart, room, scale, onUpdate, roomType]);
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDragging, isResizing, room, scale, onUpdate, roomType]);
 
   const area = room.size.width * room.size.height;
 
@@ -137,7 +156,9 @@ export function DraggableRoom({
       onMouseDown={handleMouseDown}
       onClick={(e) => {
         e.stopPropagation();
-        onClick(room);
+        if (!e.target.closest('.resize-handle')) {
+          onClick(room);
+        }
       }}
     >
       {/* Room Content */}
@@ -168,19 +189,19 @@ export function DraggableRoom({
       {/* Dimension Labels */}
       {isSelected && (
         <>
-          {/* Width label (top) */}
           <div className="dimension-label dimension-horizontal" style={{
             top: '-24px',
             left: '50%',
-            transform: 'translateX(-50%)'
+            transform: 'translateX(-50%)',
+            pointerEvents: 'none'
           }}>
             {room.size.width}m
           </div>
-          {/* Height label (left) */}
           <div className="dimension-label dimension-vertical" style={{
             left: '-40px',
             top: '50%',
-            transform: 'translateY(-50%)'
+            transform: 'translateY(-50%)',
+            pointerEvents: 'none'
           }}>
             {room.size.height}m
           </div>
